@@ -1,723 +1,226 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>月度花销记账表 - 带导出功能</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        header {
-            background: linear-gradient(90deg, #3498db, #2c3e50);
-            color: white;
-            padding: 25px;
-            text-align: center;
-        }
-        h1 {
-            font-size: 2.2rem;
-            margin-bottom: 10px;
-        }
-        .description {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-        .content {
-            padding: 25px;
-        }
-        .controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 15px;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        .month-selector {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .export-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        select, input, button {
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 1rem;
-        }
-        select {
-            cursor: pointer;
-            background: white;
-        }
-        button {
-            background: #3498db;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        button:hover {
-            background: #2980b9;
-        }
-        button.delete-btn {
-            background: #e74c3c;
-            padding: 6px 12px;
-            font-size: 0.9rem;
-        }
-        button.delete-btn:hover {
-            background: #c0392b;
-        }
-        button.export-btn {
-            background: #27ae60;
-        }
-        button.export-btn:hover {
-            background: #219653;
-        }
-        .table-container {
-            overflow-x: auto;
-            margin-bottom: 30px;
-            border: 1px solid #eee;
-            border-radius: 8px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 800px;
-        }
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            position: sticky;
-            top: 0;
-        }
-        tr:hover {
-            background-color: #f8f9fa;
-        }
-        input, select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        input:focus, select:focus {
-            outline: none;
-            border-color: #3498db;
-            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-        }
-        .summary {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        .summary h2 {
-            margin-bottom: 15px;
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-        }
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-        }
-        .summary-item {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .summary-item.total {
-            background: linear-gradient(90deg, #3498db, #2c3e50);
-            color: white;
-            grid-column: 1 / -1;
-        }
-        .expense-type {
-            font-weight: 600;
-            color: #2c3e50;
-            display: block;
-            margin-bottom: 5px;
-        }
-        .summary-item.total .expense-type {
-            color: white;
-        }
-        .amount {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: #2c3e50;
-        }
-        .summary-item.total .amount {
-            color: white;
-            font-size: 1.8rem;
-        }
-        .count {
-            color: #7f8c8d;
-            font-size: 0.9rem;
-        }
-        .summary-item.total .count {
-            color: rgba(255, 255, 255, 0.8);
-        }
-        .export-section {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-        .export-section h2 {
-            margin-bottom: 15px;
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-        }
-        .export-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        .export-option {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .export-option h3 {
-            margin-bottom: 10px;
-            color: #2c3e50;
-        }
-        .export-option p {
-            margin-bottom: 15px;
-            color: #7f8c8d;
-        }
-        .share-link {
-            display: flex;
-            margin-top: 15px;
-        }
-        .share-link input {
-            flex: 1;
-            border-radius: 4px 0 0 4px;
-        }
-        .share-link button {
-            border-radius: 0 4px 4px 0;
-        }
-        @media (max-width: 768px) {
-            .controls {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .month-selector {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .export-buttons {
-                flex-direction: column;
-            }
-        }
-        .notes-input {
-            width: 100%;
-            min-height: 40px;
-            resize: vertical;
-        }
-        .type-water { background-color: rgba(52, 152, 219, 0.1); }
-        .type-food { background-color: rgba(46, 204, 113, 0.1); }
-        .type-transport { background-color: rgba(155, 89, 182, 0.1); }
-        .type-other { background-color: rgba(241, 196, 15, 0.1); }
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            background: #27ae60;
-            color: white;
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-            z-index: 1000;
-        }
-        .notification.show {
-            transform: translateX(0);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月度花销记账表 - 自定义类型</title>
+<style>
+* { box-sizing: border-box; margin:0; padding:0; }
+body { font-family:'Segoe UI', Tahoma, Geneva, Verdana,sans-serif; background:#f5f7fa; padding:20px; }
+.container { max-width:1200px; margin:0 auto; background:white; border-radius:12px; padding:20px; box-shadow:0 5px 15px rgba(0,0,0,0.1);}
+header { text-align:center; margin-bottom:20px;}
+h1 { font-size:2rem; margin-bottom:5px;}
+.controls { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; background:#3498db; color:white; }
+button:hover { background:#2980b9; }
+.delete-btn { background:#e74c3c; }
+.delete-btn:hover { background:#c0392b; }
+.export-btn { background:#27ae60; }
+.export-btn:hover { background:#219653; }
+table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; }
+.type-water { background:rgba(52,152,219,0.1);}
+.type-food { background:rgba(46,204,113,0.1);}
+.type-transport { background:rgba(155,89,182,0.1);}
+.type-custom { background:rgba(241,196,15,0.1);}
+.summary { background:#f8f9fa; padding:15px; border-radius:8px; }
+.summary-item { background:white; padding:10px; border-radius:6px; margin-bottom:10px;}
+.summary-item.total { background:#3498db; color:white; font-weight:bold; }
+.notification { position:fixed; top:20px; right:20px; background:#27ae60; color:white; padding:10px 15px; border-radius:4px; transform:translateX(100%); transition:transform 0.3s ease; z-index:1000;}
+.notification.show { transform:translateX(0);}
+.notification.error { background:#e74c3c;}
+</style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>月度花销记账表</h1>
-            <p class="description">记录您的日常支出，支持导出和分享功能</p>
-        </header>
-        
-        <div class="content">
-            <div class="controls">
-                <div class="month-selector">
-                    <select id="month-select">
-                        <option value="0">一月</option>
-                        <option value="1">二月</option>
-                        <option value="2">三月</option>
-                        <option value="3">四月</option>
-                        <option value="4">五月</option>
-                        <option value="5">六月</option>
-                        <option value="6">七月</option>
-                        <option value="7">八月</option>
-                        <option value="8">九月</option>
-                        <option value="9">十月</option>
-                        <option value="10">十一月</option>
-                        <option value="11">十二月</option>
-                    </select>
-                    <select id="year-select">
-                        <!-- 年份选项由JavaScript动态生成 -->
-                    </select>
-                </div>
-                <div class="export-buttons">
-                    <button id="add-row">
-                        <span>+ 添加记录</span>
-                    </button>
-                    <button id="export-pdf" class="export-btn">
-                        <span>📄 导出PDF</span>
-                    </button>
-                    <button id="export-excel" class="export-btn">
-                        <span>📊 导出Excel</span>
-                    </button>
-                </div>
-            </div>
+<div class="container">
+    <header>
+        <h1>月度花销记账表</h1>
+    </header>
 
-            <div class="table-container">
-                <table id="expense-table">
-                    <thead>
-                        <tr>
-                            <th width="120">日期</th>
-                            <th width="100">花销类型</th>
-                            <th width="120">金额 (元)</th>
-                            <th>备注</th>
-                            <th width="100">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- 表格内容由JavaScript动态生成 -->
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="summary">
-                <h2>花销统计</h2>
-                <div class="summary-grid">
-                    <div class="summary-item total">
-                        <span class="expense-type">总花销</span>
-                        <div class="amount">¥<span id="total-expense">0</span></div>
-                    </div>
-                    <div class="summary-item">
-                        <span class="expense-type">水费</span>
-                        <div class="amount">¥<span id="water-expense">0</span></div>
-                        <div class="count">次数: <span id="water-count">0</span></div>
-                    </div>
-                    <div class="summary-item">
-                        <span class="expense-type">食物</span>
-                        <div class="amount">¥<span id="food-expense">0</span></div>
-                        <div class="count">次数: <span id="food-count">0</span></div>
-                    </div>
-                    <div class="summary-item">
-                        <span class="expense-type">出行</span>
-                        <div class="amount">¥<span id="transport-expense">0</span></div>
-                        <div class="count">次数: <span id="transport-count">0</span></div>
-                    </div>
-                    <div class="summary-item">
-                        <span class="expense-type">其它</span>
-                        <div class="amount">¥<span id="other-expense">0</span></div>
-                        <div class="count">次数: <span id="other-count">0</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="export-section">
-                <h2>分享与导出</h2>
-                <div class="export-options">
-                    <div class="export-option">
-                        <h3>导出为PDF文件</h3>
-                        <p>生成一个美观的PDF文档，适合打印或通过邮件发送。</p>
-                        <button id="generate-pdf" class="export-btn">
-                            <span>📄 生成PDF</span>
-                        </button>
-                    </div>
-                    <div class="export-option">
-                        <h3>导出为Excel文件</h3>
-                        <p>导出为Excel电子表格，方便进一步数据分析。</p>
-                        <button id="generate-excel" class="export-btn">
-                            <span>📊 生成Excel</span>
-                        </button>
-                    </div>
-                    <div class="export-option">
-                        <h3>生成分享链接</h3>
-                        <p>创建一个可分享的链接，其他人可以查看您的花销统计（只读）。</p>
-                        <button id="generate-link" class="export-btn">
-                            <span>🔗 生成分享链接</span>
-                        </button>
-                        <div class="share-link">
-                            <input type="text" id="share-url" readonly placeholder="点击生成分享链接">
-                            <button id="copy-link">复制</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div class="controls">
+        <div class="month-year-select">
+            <select id="month-select"></select>
+            <select id="year-select"></select>
+        </div>
+        <div>
+            <button id="add-row">+ 添加记录</button>
+            <button id="export-xlsx" class="export-btn">导出 Excel</button>
         </div>
     </div>
 
-    <div class="notification" id="notification">操作成功！</div>
+    <div class="custom-type-section">
+        <input type="text" id="new-type-input" placeholder="输入新的花销类型">
+        <button id="add-type">添加类型</button>
+        <div id="custom-types-list" style="margin-top:10px;"></div>
+    </div>
 
-    <!-- 引入外部库 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <table id="expense-table">
+        <thead>
+            <tr>
+                <th>日期</th>
+                <th>类型</th>
+                <th>金额</th>
+                <th>备注</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 
-    <script>
-        // 初始化jsPDF
-        const { jsPDF } = window.jspdf;
+    <div class="summary" id="summary-grid">
+        <div class="summary-item total">
+            总花销: ¥<span id="total-expense">0</span>
+        </div>
+    </div>
+</div>
 
-        document.addEventListener('DOMContentLoaded', function() {
-            // 初始化年份选择器
-            const yearSelect = document.getElementById('year-select');
-            const currentYear = new Date().getFullYear();
-            for (let year = currentYear - 5; year <= currentYear + 1; year++) {
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                option.selected = year === currentYear;
-                yearSelect.appendChild(option);
-            }
-            
-            // 设置当前月份
-            const currentMonth = new Date().getMonth();
-            document.getElementById('month-select').value = currentMonth;
-            
-            // 加载数据
-            loadExpenseData();
-            
-            // 添加事件监听器
-            document.getElementById('add-row').addEventListener('click', addNewRow);
-            document.getElementById('month-select').addEventListener('change', loadExpenseData);
-            document.getElementById('year-select').addEventListener('change', loadExpenseData);
-            document.getElementById('generate-pdf').addEventListener('click', generatePDF);
-            document.getElementById('generate-excel').addEventListener('click', generateExcel);
-            document.getElementById('generate-link').addEventListener('click', generateShareLink);
-            document.getElementById('copy-link').addEventListener('click', copyShareLink);
-            document.getElementById('export-pdf').addEventListener('click', generatePDF);
-            document.getElementById('export-excel').addEventListener('click', generateExcel);
-            
-            // 计算并显示统计
-            calculateSummary();
+<div class="notification" id="notification"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const expenseTypes = ['水','食物','出行'];
+    let customTypes = [];
+
+    const monthSelect = document.getElementById('month-select');
+    const yearSelect = document.getElementById('year-select');
+
+    // 初始化月份
+    ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'].forEach((m,i)=>{
+        const opt = document.createElement('option'); opt.value=i; opt.textContent=m; monthSelect.appendChild(opt);
+    });
+    monthSelect.value = new Date().getMonth();
+
+    // 初始化年份
+    const currentYear = new Date().getFullYear();
+    for(let y=currentYear-5;y<=currentYear+1;y++){
+        const opt = document.createElement('option'); opt.value=y; opt.textContent=y; if(y===currentYear) opt.selected=true; yearSelect.appendChild(opt);
+    }
+
+    loadCustomTypes();
+    loadExpenseData();
+    calculateSummary();
+
+    document.getElementById('add-row').addEventListener('click', addNewRow);
+    document.getElementById('add-type').addEventListener('click', addCustomType);
+    monthSelect.addEventListener('change', loadExpenseData);
+    yearSelect.addEventListener('change', loadExpenseData);
+    document.getElementById('export-xlsx').addEventListener('click', generateXLSX);
+
+    function showNotification(msg, isError=false){
+        const n=document.getElementById('notification'); n.textContent=msg; n.classList.remove('error'); if(isError) n.classList.add('error'); n.classList.add('show');
+        setTimeout(()=>n.classList.remove('show'),3000);
+    }
+
+    function getSelectedYearMonth(){ 
+        const month=(parseInt(monthSelect.value)+1).toString().padStart(2,'0'); 
+        return `${yearSelect.value}-${month}`; 
+    }
+    function getSelectedYearMonthText(){ 
+        const monthNames=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+        return `${yearSelect.value}年${monthNames[parseInt(monthSelect.value)]}`;
+    }
+
+    function loadCustomTypes(){
+        const saved = localStorage.getItem('customExpenseTypes');
+        if(saved) customTypes = JSON.parse(saved);
+        updateCustomTypesDisplay();
+    }
+    function saveCustomTypes(){ localStorage.setItem('customExpenseTypes', JSON.stringify(customTypes)); }
+    function updateCustomTypesDisplay(){
+        const list=document.getElementById('custom-types-list'); list.innerHTML='';
+        customTypes.forEach(type=>{
+            const tag=document.createElement('div'); tag.style.display='inline-block'; tag.style.marginRight='5px';
+            tag.style.background='#3498db'; tag.style.color='white'; tag.style.padding='3px 8px'; tag.style.borderRadius='10px';
+            tag.innerHTML=`${type} <span style="cursor:pointer;" data-type="${type}">×</span>`;
+            list.appendChild(tag);
         });
+        document.querySelectorAll('#custom-types-list span').forEach(sp=>sp.addEventListener('click',()=>{ removeCustomType(sp.dataset.type); }));
+    }
+    function addCustomType(){
+        const input=document.getElementById('new-type-input'); const t=input.value.trim(); if(!t){showNotification('请输入类型',true); return;}
+        if(expenseTypes.includes(t) || customTypes.includes(t)){showNotification('类型已存在',true); return;}
+        customTypes.push(t); saveCustomTypes(); updateCustomTypesDisplay(); input.value=''; showNotification(`类型 "${t}" 添加成功`);
+        updateTypeSelects();
+    }
+    function removeCustomType(t){ customTypes=customTypes.filter(x=>x!==t); saveCustomTypes(); updateCustomTypesDisplay(); loadExpenseData(); showNotification(`类型 "${t}" 已删除`); }
 
-        // 显示通知
-        function showNotification(message) {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.classList.add('show');
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
-        }
+    function addNewRow(){
+        const today=new Date();
+        const date=`${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
+        addRowToTable(date,'食物','', '', Date.now());
+    }
 
-        // 获取当前选择的年月
-        function getSelectedYearMonth() {
-            const year = document.getElementById('year-select').value;
-            const month = document.getElementById('month-select').value;
-            return `${year}-${month}`;
-        }
+    function addRowToTable(date,type,amount,notes,id){
+        const tbody=document.querySelector('#expense-table tbody'); 
+        const row=document.createElement('tr'); row.dataset.id=id;
+        const typeClass=getTypeClass(type); row.className=`type-${typeClass}`;
+        row.innerHTML=`
+            <td><input type="date" value="${date}" class="date-input"></td>
+            <td><select class="type-select"></select></td>
+            <td><input type="number" value="${amount}" class="amount-input" min="0" step="0.01"></td>
+            <td><input type="text" value="${notes}" class="notes-input"></td>
+            <td><button class="delete-btn">删除</button></td>
+        `;
+        const select=row.querySelector('.type-select'); updateSingleTypeSelect(select,type);
+        row.querySelectorAll('input, select').forEach(el=>el.addEventListener('input', saveExpenseData));
+        row.querySelector('.delete-btn').addEventListener('click',()=>{ row.remove(); saveExpenseData(); });
+        tbody.appendChild(row);
+        saveExpenseData();
+    }
 
-        // 获取当前年月文本
-        function getSelectedYearMonthText() {
-            const year = document.getElementById('year-select').value;
-            const month = document.getElementById('month-select').value;
-            const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', 
-                               '七月', '八月', '九月', '十月', '十一月', '十二月'];
-            return `${year}年${monthNames[month]}`;
-        }
+    function updateSingleTypeSelect(select,val){
+        const all=[...expenseTypes,...customTypes]; select.innerHTML=''; all.forEach(t=>{ const opt=document.createElement('option'); opt.value=t; opt.textContent=t; if(t===val) opt.selected=true; select.appendChild(opt); });
+        select.addEventListener('change', saveExpenseData);
+    }
 
-        // 加载支出数据
-        function loadExpenseData() {
-            const tableBody = document.querySelector('#expense-table tbody');
-            tableBody.innerHTML = '';
-            
-            const key = getSelectedYearMonth();
-            const expenses = JSON.parse(localStorage.getItem(key)) || [];
-            
-            expenses.forEach(expense => {
-                addRowToTable(expense.date, expense.type, expense.amount, expense.notes, expense.id);
-            });
-            
-            calculateSummary();
-        }
+    function updateTypeSelects(){
+        document.querySelectorAll('.type-select').forEach(s=>{ const val=s.value; updateSingleTypeSelect(s,val); });
+    }
 
-        // 添加新行
-        function addNewRow() {
-            const today = new Date();
-            const dateString = today.toISOString().split('T')[0];
-            addRowToTable(dateString, '食物', '', '', Date.now());
-        }
+    function getTypeClass(t){ if(t==='水') return 'water'; if(t==='食物') return 'food'; if(t==='出行') return 'transport'; return 'custom'; }
 
-        // 添加行到表格
-        function addRowToTable(date, type, amount, notes, id) {
-            const tableBody = document.querySelector('#expense-table tbody');
-            const row = document.createElement('tr');
-            
-            // 根据类型添加背景色
-            row.classList.add(`type-${getTypeClass(type)}`);
-            
-            row.innerHTML = `
-                <td><input type="date" value="${date}" class="date-input"></td>
-                <td>
-                    <select class="type-select">
-                        <option value="水" ${type === '水' ? 'selected' : ''}>水</option>
-                        <option value="食物" ${type === '食物' ? 'selected' : ''}>食物</option>
-                        <option value="出行" ${type === '出行' ? 'selected' : ''}>出行</option>
-                        <option value="其它" ${type === '其它' ? 'selected' : ''}>其它</option>
-                    </select>
-                </td>
-                <td><input type="number" value="${amount}" class="amount-input" min="0" step="0.01" placeholder="0.00"></td>
-                <td><input type="text" value="${notes}" class="notes-input" placeholder="添加备注..."></td>
-                <td><button class="delete-btn">删除</button></td>
-            `;
-            
-            // 设置行ID以便识别
-            row.dataset.id = id;
-            
-            // 添加事件监听器
-            const dateInput = row.querySelector('.date-input');
-            const typeSelect = row.querySelector('.type-select');
-            const amountInput = row.querySelector('.amount-input');
-            const notesInput = row.querySelector('.notes-input');
-            const deleteBtn = row.querySelector('.delete-btn');
-            
-            const updateHandler = () => {
-                // 更新行背景色
-                row.className = '';
-                row.classList.add(`type-${getTypeClass(typeSelect.value)}`);
-                saveExpenseData();
-            };
-            
-            dateInput.addEventListener('change', updateHandler);
-            typeSelect.addEventListener('change', updateHandler);
-            amountInput.addEventListener('change', updateHandler);
-            amountInput.addEventListener('input', updateHandler);
-            notesInput.addEventListener('change', updateHandler);
-            notesInput.addEventListener('input', updateHandler);
-            
-            deleteBtn.addEventListener('click', function() {
-                row.remove();
-                saveExpenseData();
-            });
-            
-            tableBody.appendChild(row);
-        }
+    function saveExpenseData(){
+        const rows=document.querySelectorAll('#expense-table tbody tr');
+        const data=Array.from(rows).map(r=>({
+            id:r.dataset.id, date:r.querySelector('.date-input').value,
+            type:r.querySelector('.type-select').value,
+            amount:parseFloat(r.querySelector('.amount-input').value)||0,
+            notes:r.querySelector('.notes-input').value
+        }));
+        localStorage.setItem(getSelectedYearMonth(),JSON.stringify(data));
+        calculateSummary();
+    }
 
-        // 获取类型的CSS类名
-        function getTypeClass(type) {
-            const typeMap = {
-                '水': 'water',
-                '食物': 'food',
-                '出行': 'transport',
-                '其它': 'other'
-            };
-            return typeMap[type] || 'other';
-        }
+    function loadExpenseData(){
+        const tbody=document.querySelector('#expense-table tbody'); tbody.innerHTML='';
+        const key=getSelectedYearMonth();
+        const data=JSON.parse(localStorage.getItem(key))||[];
+        data.forEach(d=>addRowToTable(d.date,d.type,d.amount,d.notes,d.id));
+        calculateSummary();
+    }
 
-        // 保存支出数据
-        function saveExpenseData() {
-            const expenses = [];
-            const rows = document.querySelectorAll('#expense-table tbody tr');
-            
-            rows.forEach(row => {
-                const date = row.querySelector('.date-input').value;
-                const type = row.querySelector('.type-select').value;
-                const amount = parseFloat(row.querySelector('.amount-input').value) || 0;
-                const notes = row.querySelector('.notes-input').value;
-                const id = row.dataset.id || Date.now();
-                
-                if (date) {
-                    expenses.push({ id, date, type, amount, notes });
-                }
-            });
-            
-            const key = getSelectedYearMonth();
-            localStorage.setItem(key, JSON.stringify(expenses));
-            
-            calculateSummary();
-        }
+    function calculateSummary(){
+        const rows=document.querySelectorAll('#expense-table tbody tr');
+        let total=0; const typeMap={}; [...expenseTypes,...customTypes].forEach(t=>typeMap[t]={amount:0,count:0});
+        rows.forEach(r=>{ const amt=parseFloat(r.querySelector('.amount-input').value)||0; const t=r.querySelector('.type-select').value; total+=amt; if(!typeMap[t]) typeMap[t]={amount:0,count:0}; typeMap[t].amount+=amt; typeMap[t].count+=1; });
+        const grid=document.getElementById('summary-grid'); const totalDiv=grid.querySelector('.total'); grid.innerHTML=''; grid.appendChild(totalDiv); document.getElementById('total-expense').textContent=total.toFixed(2);
+        Object.keys(typeMap).forEach(t=>{ const d=typeMap[t]; if(d.count>0){ const div=document.createElement('div'); div.className='summary-item'; div.innerHTML=`${t}: ¥${d.amount.toFixed(2)} (次数:${d.count})`; grid.appendChild(div); }});
+    }
 
-        // 计算并显示统计摘要
-        function calculateSummary() {
-            // 初始化统计变量
-            let totalExpense = 0;
-            const typeExpense = {
-                '水': { amount: 0, count: 0 },
-                '食物': { amount: 0, count: 0 },
-                '出行': { amount: 0, count: 0 },
-                '其它': { amount: 0, count: 0 }
-            };
-            
-            // 计算统计数据
-            const rows = document.querySelectorAll('#expense-table tbody tr');
-            rows.forEach(row => {
-                const amount = parseFloat(row.querySelector('.amount-input').value) || 0;
-                const type = row.querySelector('.type-select').value;
-                
-                if (!isNaN(amount)) {
-                    totalExpense += amount;
-                    typeExpense[type].amount += amount;
-                    typeExpense[type].count += 1;
-                }
-            });
-            
-            // 更新统计显示
-            document.getElementById('total-expense').textContent = totalExpense.toFixed(2);
-            document.getElementById('water-expense').textContent = typeExpense['水'].amount.toFixed(2);
-            document.getElementById('water-count').textContent = typeExpense['水'].count;
-            document.getElementById('food-expense').textContent = typeExpense['食物'].amount.toFixed(2);
-            document.getElementById('food-count').textContent = typeExpense['食物'].count;
-            document.getElementById('transport-expense').textContent = typeExpense['出行'].amount.toFixed(2);
-            document.getElementById('transport-count').textContent = typeExpense['出行'].count;
-            document.getElementById('other-expense').textContent = typeExpense['其它'].amount.toFixed(2);
-            document.getElementById('other-count').textContent = typeExpense['其它'].count;
-        }
-
-        // 生成PDF文档
-        function generatePDF() {
-            const doc = new jsPDF();
-            const monthYear = getSelectedYearMonthText();
-            
-            // 添加标题
-            doc.setFontSize(20);
-            doc.text(`${monthYear}花销记录`, 105, 15, { align: 'center' });
-            
-            // 添加统计信息
-            doc.setFontSize(12);
-            doc.text(`总花销: ¥${document.getElementById('total-expense').textContent}`, 14, 25);
-            doc.text(`记录总数: ${document.querySelectorAll('#expense-table tbody tr').length}`, 14, 32);
-            
-            // 准备表格数据
-            const tableData = [];
-            const rows = document.querySelectorAll('#expense-table tbody tr');
-            
-            rows.forEach(row => {
-                const date = row.querySelector('.date-input').value;
-                const type = row.querySelector('.type-select').value;
-                const amount = row.querySelector('.amount-input').value;
-                const notes = row.querySelector('.notes-input').value;
-                
-                tableData.push([date, type, `¥${amount}`, notes]);
-            });
-            
-            // 添加表格
-            doc.autoTable({
-                head: [['日期', '类型', '金额', '备注']],
-                body: tableData,
-                startY: 40,
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [52, 152, 219],
-                    textColor: 255
-                }
-            });
-            
-            // 保存PDF
-            doc.save(`${monthYear}花销记录.pdf`);
-            showNotification('PDF导出成功！');
-        }
-
-        // 生成Excel文件
-        function generateExcel() {
-            const monthYear = getSelectedYearMonthText();
-            
-            // 准备工作表数据
-            const data = [];
-            data.push(['日期', '类型', '金额', '备注']);
-            
-            const rows = document.querySelectorAll('#expense-table tbody tr');
-            rows.forEach(row => {
-                const date = row.querySelector('.date-input').value;
-                const type = row.querySelector('.type-select').value;
-                const amount = row.querySelector('.amount-input').value;
-                const notes = row.querySelector('.notes-input').value;
-                
-                data.push([date, type, amount, notes]);
-            });
-            
-            // 创建工作簿和工作表
-            const ws = XLSX.utils.aoa_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, monthYear);
-            
-            // 导出Excel文件
-            XLSX.writeFile(wb, `${monthYear}花销记录.xlsx`);
-            showNotification('Excel导出成功！');
-        }
-
-        // 生成分享链接
-        function generateShareLink() {
-            const key = getSelectedYearMonth();
-            const expenses = JSON.parse(localStorage.getItem(key)) || [];
-            
-            if (expenses.length === 0) {
-                showNotification('没有数据可分享！');
-                return;
-            }
-            
-            // 将数据编码为Base64（实际应用中可能需要压缩）
-            const dataStr = JSON.stringify(expenses);
-            const base64Data = btoa(encodeURIComponent(dataStr));
-            
-            // 生成URL（这里使用假URL，实际应用中可能需要服务器支持）
-            const url = `https://example.com/share/?data=${base64Data}&month=${key}`;
-            document.getElementById('share-url').value = url;
-            
-            showNotification('分享链接已生成！');
-        }
-
-        // 复制分享链接
-        function copyShareLink() {
-            const shareInput = document.getElementById('share-url');
-            
-            if (!shareInput.value) {
-                showNotification('请先生成分享链接！');
-                return;
-            }
-            
-            shareInput.select();
-            document.execCommand('copy');
-            showNotification('链接已复制到剪贴板！');
-        }
-    </script>
+    function generateXLSX(){
+        try{
+            const monthYear=getSelectedYearMonthText();
+            const rows=document.querySelectorAll('#expense-table tbody tr');
+            const data=[["日期","类型","金额","备注"]];
+            rows.forEach(r=>{ data.push([r.querySelector('.date-input').value,r.querySelector('.type-select').value,r.querySelector('.amount-input').value,r.querySelector('.notes-input').value]); });
+            const wb=XLSX.utils.book_new(); const ws=XLSX.utils.aoa_to_sheet(data);
+            ws['!cols']=[{wch:15},{wch:15},{wch:12},{wch:40}];
+            XLSX.utils.book_append_sheet(wb,ws,"花销记录"); XLSX.writeFile(wb,`${monthYear}花销记录.xlsx`);
+            showNotification("Excel 导出成功！");
+        }catch(e){ console.error(e); showNotification("Excel 导出失败",true); }
+    }
+});
+</script>
 </body>
 </html>
