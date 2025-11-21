@@ -34,12 +34,86 @@ th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; }
 
 /* 手机适配 */
 @media (max-width: 768px) {
+    /* 保持原有的控制和输入框适配 */
     .controls { flex-direction:column; align-items:stretch; }
     .month-year-select { display:flex; gap:10px; margin-bottom:10px; }
     .month-year-select select { flex:1; }
     .controls button { width:100%; }
-    table th, table td { padding:6px 8px; font-size:0.9rem; }
     .custom-type-section input, .custom-type-section button { width:100%; margin-bottom:5px; }
+    
+    /* 核心表格优化：响应式堆叠布局 */
+    .table-container { 
+        overflow-x: hidden; /* 在小屏幕上取消水平滚动 */
+    }
+    table {
+        min-width: unset; /* 取消表格的最小宽度限制 */
+    }
+    table, thead, tbody, th, td, tr {
+        display: block; /* 所有表格元素都变为块级元素 */
+    }
+
+    /* 隐藏表头 */
+    thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+
+    /* 优化表格行 (每条记录) */
+    tr {
+        border: 1px solid #ccc; /* 给每条记录加边框，使其更像一个卡片 */
+        margin-bottom: 10px;
+        border-radius: 8px;
+        overflow: hidden; 
+        padding: 0; /* 清除默认内边距 */
+    }
+
+    /* 优化表格单元格 (每条记录中的字段) */
+    td {
+        border: none;
+        border-bottom: 1px solid #eee; /* 用细线分隔字段 */
+        position: relative;
+        padding-left: 50%; /* 留出空间给伪元素标题 */
+        text-align: right;
+        min-height: 40px; /* 确保有足够的空间 */
+    }
+    
+    /* 确保输入框和选择框在右侧居中对齐 */
+    td input, td select {
+        width: 100%;
+        text-align: right;
+        border: none;
+        padding: 0;
+        margin: 0;
+        line-height: 1.2;
+        background: transparent; /* 保持输入框背景透明，使其看起来是单元格的一部分 */
+    }
+
+    /* 使用伪元素显示标题 (数据标签) */
+    td::before {
+        content: attr(data-label); /* 获取自定义的data-label属性作为标题 */
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 40%;
+        padding-right: 10px;
+        white-space: nowrap;
+        text-align: left;
+        font-weight: bold;
+        color: #555;
+    }
+    
+    /* 突出操作按钮 */
+    td:last-child {
+        text-align: center;
+        padding: 10px;
+        border-bottom: none;
+    }
+    td:last-child button {
+        width: 50%;
+        max-width: 200px;
+    }
 }
 </style>
 </head>
@@ -162,20 +236,25 @@ document.addEventListener('DOMContentLoaded', function() {
     function addNewRow(){
         const today=new Date();
         const date=`${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
-        addRowToTable(date,'食物','', '', Date.now());
+        // 新记录默认类型设为“食物”
+        addRowToTable(date,'食物','', '', Date.now()); 
     }
 
     function addRowToTable(date,type,amount,notes,id){
         const tbody=document.querySelector('#expense-table tbody'); 
         const row=document.createElement('tr'); row.dataset.id=id;
         const typeClass=getTypeClass(type); row.className=`type-${typeClass}`;
+        
+        // **【修改点】**：为每个 <td> 添加 data-label 属性，用于手机端显示标签
         row.innerHTML=`
-            <td><input type="date" value="${date}" class="date-input"></td>
-            <td><select class="type-select"></select></td>
-            <td><input type="number" value="${amount}" class="amount-input" min="0" step="0.01"></td>
-            <td><input type="text" value="${notes}" class="notes-input"></td>
-            <td><button class="delete-btn">删除</button></td>
+            <td data-label="日期"><input type="date" value="${date}" class="date-input"></td>
+            <td data-label="类型"><select class="type-select"></select></td>
+            <td data-label="金额"><input type="number" value="${amount}" class="amount-input" min="0" step="0.01"></td>
+            <td data-label="备注"><input type="text" value="${notes}" class="notes-input"></td>
+            <td data-label="操作"><button class="delete-btn">删除</button></td>
         `;
+        // **【修改点结束】**
+
         const select=row.querySelector('.type-select'); updateSingleTypeSelect(select,type);
         row.querySelectorAll('input, select').forEach(el=>el.addEventListener('input', saveExpenseData));
         row.querySelector('.delete-btn').addEventListener('click',()=>{ row.remove(); saveExpenseData(); });
