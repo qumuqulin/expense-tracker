@@ -7,35 +7,85 @@
 
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background:#f5f7fa; padding:20px; }
-.container { max-width:1100px; margin:auto; background:#fff; border-radius:12px; padding:20px; box-shadow:0 6px 16px rgba(0,0,0,.1); }
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background:#f5f7fa;
+  padding:20px;
+}
+.container {
+  max-width:1100px;
+  margin:auto;
+  background:#fff;
+  border-radius:12px;
+  padding:20px;
+  box-shadow:0 6px 16px rgba(0,0,0,.1);
+}
 h1 { text-align:center; margin-bottom:15px; }
 
-.controls { display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:15px; }
-button { padding:8px 12px; border:none; border-radius:6px; background:#3498db; color:#fff; cursor:pointer; }
+.controls {
+  display:flex;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:15px;
+}
+
+button {
+  padding:8px 12px;
+  border:none;
+  border-radius:6px;
+  background:#3498db;
+  color:#fff;
+  cursor:pointer;
+}
 button:hover { background:#2980b9; }
 .delete-btn { background:#e74c3c; }
 
-table { width:100%; border-collapse:collapse; margin-top:10px; }
-th,td { border-bottom:1px solid #ddd; padding:8px; text-align:left; }
+table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+th,td {
+  border-bottom:1px solid #ddd;
+  padding:8px;
+  text-align:left;
+}
 
-.summary { margin-top:15px; background:#f8f9fa; padding:12px; border-radius:8px; }
+.summary {
+  margin-top:15px;
+  background:#f8f9fa;
+  padding:12px;
+  border-radius:8px;
+}
 .summary strong { font-size:18px; }
 
-#auth-box { margin-bottom:20px; padding:15px; border:1px solid #ddd; border-radius:8px; }
-#auth-msg { margin-top:8px; font-size:14px; }
+#auth-box {
+  margin-bottom:20px;
+  padding:15px;
+  border:1px solid #ddd;
+  border-radius:8px;
+}
+#auth-msg {
+  margin-top:8px;
+  font-size:14px;
+  color:#e74c3c;
+}
+
+@media (max-width:600px) {
+  table input { width:100%; }
+}
 </style>
 
-<!-- Supabase SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- ✅ Supabase 官方 SDK（唯一需要的外部依赖） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-/* ========= Supabase 初始化（只此一处） ========= */
-<script>
+/* ================= Supabase 初始化 ================= */
 const SUPABASE_URL = 'https://lhmegseratwrdomkuikk.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_vG66XSCR6tYWuQD3-8Ta6Q_MP_cw39B';
 
-// 注意：这里用的是 window.supabase
-const supabaseClient = window.supabase.createClient(
+const supabase = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
@@ -48,7 +98,7 @@ let currentUser = null;
 <div class="container">
   <h1>月度花销记账表</h1>
 
-  <!-- 登录框 -->
+  <!-- 登录区域 -->
   <div id="auth-box"></div>
 
   <div class="controls">
@@ -62,7 +112,11 @@ let currentUser = null;
   <table>
     <thead>
       <tr>
-        <th>日期</th><th>类型</th><th>金额</th><th>备注</th><th></th>
+        <th>日期</th>
+        <th>类型</th>
+        <th>金额</th>
+        <th>备注</th>
+        <th></th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -74,7 +128,7 @@ let currentUser = null;
 </div>
 
 <script>
-/* ========= 初始化年月 ========= */
+/* ================= 年月初始化 ================= */
 const yearSel = document.getElementById('year');
 const monthSel = document.getElementById('month');
 
@@ -82,10 +136,11 @@ const now = new Date();
 for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 1; y++) {
   yearSel.innerHTML += `<option ${y===now.getFullYear()?'selected':''}>${y}</option>`;
 }
-['1','2','3','4','5','6','7','8','9','10','11','12']
-  .forEach((m,i)=>monthSel.innerHTML+=`<option ${i===now.getMonth()?'selected':''}>${m}</option>`);
+for (let m = 1; m <= 12; m++) {
+  monthSel.innerHTML += `<option ${m===now.getMonth()+1?'selected':''}>${m}</option>`;
+}
 
-/* ========= Auth UI ========= */
+/* ================= Auth UI ================= */
 const authBox = document.getElementById('auth-box');
 
 function renderAuth() {
@@ -105,9 +160,17 @@ function renderAuth() {
   }
 }
 
+function showAuth(msg) {
+  document.getElementById('auth-msg').textContent = msg;
+}
+
 async function login() {
-  const email = email.value, password = pwd.value;
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('pwd').value;
+
+  const { data, error } =
+    await supabase.auth.signInWithPassword({ email, password });
+
   if (error) return showAuth(error.message);
   currentUser = data.user;
   renderAuth();
@@ -115,25 +178,27 @@ async function login() {
 }
 
 async function signup() {
-  const email = email.value, password = pwd.value;
-  const { error } = await supabaseClient.auth.signUp({ email, password });
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('pwd').value;
+
+  const { error } =
+    await supabase.auth.signUp({ email, password });
+
   if (error) return showAuth(error.message);
-  showAuth('注册成功，可直接登录');
+  showAuth('注册成功，请登录');
 }
 
 async function logout() {
-  await supabaseClient.auth.signOut();
+  await supabase.auth.signOut();
   currentUser = null;
   renderAuth();
 }
 
-function showAuth(msg) {
-  document.getElementById('auth-msg').textContent = msg;
-}
-
-/* ========= 表格逻辑 ========= */
+/* ================= 表格逻辑 ================= */
 const tbody = document.getElementById('tbody');
-function key() { return yearSel.value + '-' + monthSel.value; }
+function key() {
+  return yearSel.value + '-' + monthSel.value;
+}
 
 function addRow(data={}) {
   const tr = document.createElement('tr');
@@ -144,19 +209,20 @@ function addRow(data={}) {
     <td><input value="${data.note||''}"></td>
     <td><button class="delete-btn">删</button></td>
   `;
-  tr.querySelector('button').onclick=()=>{tr.remove();save()};
-  tr.querySelectorAll('input').forEach(i=>i.oninput=save);
+  tr.querySelector('button').onclick = () => { tr.remove(); save(); };
+  tr.querySelectorAll('input').forEach(i => i.oninput = save);
   tbody.appendChild(tr);
   save();
 }
 
 function save() {
-  const rows = [...tbody.children].map(tr=>({
-    date:tr.children[0].firstChild.value,
-    type:tr.children[1].firstChild.value,
-    amount:+tr.children[2].firstChild.value||0,
-    note:tr.children[3].firstChild.value
+  const rows = [...tbody.children].map(tr => ({
+    date: tr.children[0].firstChild.value,
+    type: tr.children[1].firstChild.value,
+    amount: +tr.children[2].firstChild.value || 0,
+    note: tr.children[3].firstChild.value
   }));
+
   localStorage.setItem(key(), JSON.stringify(rows));
   document.getElementById('total').textContent =
     rows.reduce((s,r)=>s+r.amount,0).toFixed(2);
@@ -165,39 +231,41 @@ function save() {
 }
 
 function loadLocal() {
-  tbody.innerHTML='';
-  (JSON.parse(localStorage.getItem(key()))||[]).forEach(addRow);
+  tbody.innerHTML = '';
+  (JSON.parse(localStorage.getItem(key())) || []).forEach(addRow);
 }
 
-yearSel.onchange = monthSel.onchange = ()=>{ loadLocal(); if(currentUser) loadCloud(); };
+yearSel.onchange = monthSel.onchange = () => {
+  loadLocal();
+  if (currentUser) loadCloud();
+};
 
-/* ========= 云端 ========= */
+/* ================= 云端同步 ================= */
 async function saveCloud(data) {
-    if (!currentUser) return;
-    await supabaseClient.from('expenses').upsert({
+  await supabase.from('expenses').upsert({
     user_id: currentUser.id,
     month: key(),
     data
-  },{onConflict:'user_id,month'});
+  }, { onConflict: 'user_id,month' });
 }
 
 async function loadCloud() {
-    if (!currentUser) return; // ⭐关键
   const { data } = await supabase
     .from('expenses')
     .select('data')
     .eq('user_id', currentUser.id)
     .eq('month', key())
     .single();
+
   if (data) {
-    tbody.innerHTML='';
+    tbody.innerHTML = '';
     data.data.forEach(addRow);
   }
 }
 
-/* ========= 启动 ========= */
+/* ================= 启动 ================= */
 (async()=>{
-  const { data:{session} } = await supabaseClient.auth.getSession();
+  const { data:{ session } } = await supabase.auth.getSession();
   if (session) currentUser = session.user;
   renderAuth();
   loadLocal();
@@ -205,7 +273,3 @@ async function loadCloud() {
 </script>
 </body>
 </html>
-
-
-
-
