@@ -59,10 +59,19 @@ h1 {
     border-radius: 4px;
     cursor: pointer;
     margin-right: 8px;
+    margin-bottom: 8px;
 }
 
 .config-btn:hover {
     opacity: .9;
+}
+
+.config-btn.success {
+    background: #2ecc71;
+}
+
+.config-btn.warning {
+    background: #f39c12;
 }
 
 /* ===== 控制区 ===== */
@@ -244,9 +253,31 @@ input, select {
         <input type="text" id="tableName" class="config-input" 
                placeholder="表名（默认：expenses）" value="expenses">
         <div class="config-buttons">
-            <button class="config-btn" onclick="saveConfig()">💾 保存配置</button>
+            <button class="config-btn success" onclick="saveConfig()">💾 保存配置</button>
             <button class="config-btn" onclick="testConnection()">🔗 测试连接</button>
+            <button class="config-btn warning" onclick="createTable()">🛠️ 创建表</button>
             <button class="config-btn" onclick="hideConfig()">隐藏配置</button>
+        </div>
+        <div id="sqlHelp" style="margin-top: 10px; display: none;">
+            <h4>📋 SQL创建表语句：</h4>
+            <pre style="background: #eee; padding: 10px; border-radius: 4px; overflow: auto;">
+CREATE TABLE expenses (
+  id BIGSERIAL PRIMARY KEY,
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL,
+  expense_date DATE NOT NULL,
+  category VARCHAR(50) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  note TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 启用RLS并设置策略
+ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "允许所有人操作expenses表" ON expenses
+  FOR ALL USING (true);
+            </pre>
         </div>
     </div>
     
@@ -260,6 +291,7 @@ input, select {
         <button id="addRow" class="green">＋ 添加记录</button>
         <button id="export">📤 导出 Excel</button>
         <button onclick="syncData()" class="green">🔄 同步云端</button>
+        <button onclick="loadCloudData()" class="green">📥 加载云端</button>
         <button onclick="showConfig()" class="config-btn">⚙️ 配置</button>
     </div>
 
@@ -297,7 +329,7 @@ input, select {
 /* ========= 全局变量 ========= */
 const baseTypes = ["食物", "出行", "水电", "房租", "购物", "娱乐", "医疗", "其他"];
 let customTypes = JSON.parse(localStorage.getItem("customTypes") || "[]");
-let expensesData = {}; // 本地缓存
+let localExpenses = {}; // 本地缓存：{ "2024-1": [ {date, category, amount, note} ] }
 let supabaseClient = null;
 let currentConfig = null;
 
@@ -309,10 +341,12 @@ const tbody = document.getElementById("tbody");
 function init() {
     // 初始化年月选择
     const now = new Date();
-    for (let y = now.getFullYear() - 5; y <= now.getFullYear() + 1; y++) {
+    const currentYear = now.getFullYear();
+    
+    for (let y = currentYear - 5; y <= currentYear + 1; y++) {
         yearEl.add(new Option(y, y));
     }
-    yearEl.value = now.getFullYear();
+    yearEl.value = currentYear;
 
     ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"].forEach((m,i)=>{
         monthEl.add(new Option(m, i));
@@ -370,8 +404,8 @@ function initSupabase() {
         document.getElementById('mainControls').style.display = 'flex';
         showStatus('云端连接成功！正在加载数据...', 'success');
         
-        // 加载云端数据
-        loadCloudData();
+        // 测试表是否存在
+        checkTableExists();
     } catch (error) {
         showStatus('初始化失败：' + error.message, 'error');
     }
@@ -379,6 +413,7 @@ function initSupabase() {
 
 function showConfig() {
     document.getElementById('configPanel').classList.remove('hidden');
+    document.getElementById('sqlHelp').style.display = 'block';
 }
 
 function hideConfig() {
@@ -401,49 +436,93 @@ async function testConnection() {
         const testClient = window.supabase.createClient(url, key);
         const { data, error } = await testClient
           .from(tableName)
-          .select('count', { count: 'exact', head: true });
+          .select('*')
+          .limit(1);
 
         if (error) {
             if (error.message.includes('does not exist')) {
-                showStatus(`表 "${tableName}" 不存在，是否自动创建？<button onclick="createTable()">创建表</button>`, 'error');
+                showStatus(`表 "${tableName}" 不存在，请点击"创建表"按钮`, 'error');
+                document.getElementById('sqlHelp').style.display = 'block';
             } else {
                 showStatus('连接失败：' + error.message, 'error');
             }
         } else {
-            showStatus('✅ 连接成功！可以保存配置了', 'success');
+            showStatus('✅ 连接成功！表已存在', 'success');
         }
     } catch (error) {
         showStatus('连接测试异常：' + error.message, 'error');
     }
 }
 
-/* ========= 云端表创建 ========= */
-async function createTable() {
+/* ========= 表管理 ========= */
+async function checkTableExists() {
     if (!supabaseClient) return;
     
     try {
-        // 尝试创建表（通过API）
         const { error } = await supabaseClient
-            .from('expenses')
-            .insert([{
-                id: 1,
-                year: new Date().getFullYear(),
-                month: new Date().getMonth(),
-                data: JSON.stringify([]),
-                created_at: new Date().toISOString()
-            }]);
+            .from(currentConfig.tableName)
+            .select('id')
+            .limit(1);
             
-        if (error) {
-            showStatus('创建表失败，请在Supabase中手动创建：<br>' + 
-                '表名：expenses<br>' +
-                '字段：id(bigint), year(int), month(int), data(json), created_at(timestamp)', 'error');
+        if (error && error.message.includes('does not exist')) {
+            showStatus('表不存在，请先创建表', 'error');
+            document.getElementById('sqlHelp').style.display = 'block';
         } else {
-            showStatus('表创建成功！', 'success');
-            // 删除测试数据
-            await supabaseClient.from('expenses').delete().eq('id', 1);
+            loadCloudData();
         }
     } catch (err) {
-        showStatus('创建异常：' + err.message, 'error');
+        console.error('检查表失败:', err);
+    }
+}
+
+async function createTable() {
+    const sql = `
+CREATE TABLE IF NOT EXISTS expenses (
+  id BIGSERIAL PRIMARY KEY,
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL,
+  expense_date DATE NOT NULL,
+  category VARCHAR(50) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  note TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 启用RLS
+ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+
+-- 创建策略（允许所有人读写）
+CREATE POLICY "允许所有人操作expenses表" ON expenses
+  FOR ALL USING (true);
+    `;
+    
+    showStatus('请在Supabase控制台的SQL编辑器中执行以下语句：', 'info');
+    alert('请登录Supabase控制台，进入SQL编辑器，粘贴并执行以下SQL语句：\n\n' + sql);
+    
+    // 也可以尝试通过API创建（但通常需要service_role权限）
+    try {
+        const testClient = window.supabase.createClient(
+            document.getElementById('supabaseUrl').value.trim(),
+            document.getElementById('supabaseKey').value.trim()
+        );
+        
+        // 尝试插入测试数据来隐式创建表（如果表不存在会失败）
+        const { error } = await testClient
+            .from('expenses')
+            .insert({
+                year: 2024,
+                month: 1,
+                expense_date: new Date().toISOString().split('T')[0],
+                category: '测试',
+                amount: 0.01,
+                note: '测试数据'
+            });
+            
+        if (!error || error.message.includes('duplicate key')) {
+            showStatus('表可能已存在，请测试连接', 'success');
+        }
+    } catch (err) {
+        showStatus('请手动在Supabase中创建表', 'info');
     }
 }
 
@@ -504,25 +583,36 @@ function addRow(data = {}) {
     const tr = document.createElement("tr");
 
     const typeOptions = [...baseTypes, ...customTypes]
-        .map(t => `<option ${t===data.type?'selected':''}>${t}</option>`).join("");
+        .map(t => `<option ${t===data.category?'selected':''}>${t}</option>`).join("");
 
     tr.innerHTML = `
-        <td><input type="date" value="${data.date || new Date().toISOString().slice(0,10)}"></td>
-        <td><select>${typeOptions}</select></td>
-        <td><input type="number" step="0.01" value="${data.amount||''}" placeholder="0.00"></td>
-        <td><input value="${data.note||''}" placeholder="备注"></td>
+        <td><input type="date" class="date-input" value="${data.expense_date || new Date().toISOString().slice(0,10)}"></td>
+        <td><select class="category-select">${typeOptions}</select></td>
+        <td><input type="number" step="0.01" class="amount-input" value="${data.amount||''}" placeholder="0.00"></td>
+        <td><input class="note-input" value="${data.note||''}" placeholder="备注"></td>
         <td><button class="delete">删除</button></td>
     `;
 
-    tr.querySelector(".delete").onclick = () => {
+    tr.querySelector(".delete").onclick = async () => {
+        // 如果数据已同步到云端，尝试删除云端记录
+        if (data.id && supabaseClient) {
+            try {
+                await supabaseClient
+                    .from(currentConfig.tableName)
+                    .delete()
+                    .eq('id', data.id);
+                showStatus('云端记录已删除', 'success');
+            } catch (err) {
+                console.error('删除云端记录失败:', err);
+            }
+        }
+        
         tr.remove();
         saveLocalData();
-        syncData(); // 同步到云端
     };
 
     tr.querySelectorAll("input,select").forEach(el => el.oninput = () => {
         saveLocalData();
-        syncData(); // 自动同步到云端
     });
     
     tbody.appendChild(tr);
@@ -533,24 +623,25 @@ function saveLocalData() {
     const rows = [...tbody.children].map(tr => {
         const inputs = tr.querySelectorAll("input,select");
         return {
-            date: inputs[0].value,
-            type: inputs[1].value,
+            id: tr.dataset.id || null,
+            expense_date: inputs[0].value,
+            category: inputs[1].value,
             amount: parseFloat(inputs[2].value) || 0,
             note: inputs[3].value
         };
     });
     
     const key = getCurrentKey();
-    expensesData[key] = rows;
-    localStorage.setItem('expensesData', JSON.stringify(expensesData));
+    localExpenses[key] = rows;
+    localStorage.setItem('localExpenses', JSON.stringify(localExpenses));
     calc();
 }
 
 // 加载本地数据
 function loadLocalData() {
-    const saved = localStorage.getItem('expensesData');
+    const saved = localStorage.getItem('localExpenses');
     if (saved) {
-        expensesData = JSON.parse(saved);
+        localExpenses = JSON.parse(saved);
     }
     loadCurrentMonth();
 }
@@ -559,56 +650,75 @@ function loadLocalData() {
 function loadCurrentMonth() {
     tbody.innerHTML = "";
     const key = getCurrentKey();
-    const rows = expensesData[key] || [];
-    rows.forEach(addRow);
+    const rows = localExpenses[key] || [];
+    rows.forEach(row => {
+        const tr = addRow(row);
+        if (row.id) {
+            tr.dataset.id = row.id;
+        }
+    });
     calc();
 }
 
 // 从云端加载数据
 async function loadCloudData() {
-    if (!supabaseClient || !currentConfig) return;
+    if (!supabaseClient || !currentConfig) {
+        showStatus('请先配置云端连接', 'error');
+        return;
+    }
+    
+    showStatus('正在从云端加载数据...', 'info');
     
     try {
+        const year = parseInt(yearEl.value);
+        const month = parseInt(monthEl.value);
+        
         const { data, error } = await supabaseClient
             .from(currentConfig.tableName)
-            .select('*');
+            .select('*')
+            .eq('year', year)
+            .eq('month', month)
+            .order('expense_date', { ascending: false });
             
         if (error) {
             showStatus('加载云端数据失败：' + error.message, 'error');
             return;
         }
         
-        // 合并云端数据到本地
+        console.log('云端数据:', data);
+        
+        // 清空当前表格
+        tbody.innerHTML = "";
+        
+        // 显示云端数据
         if (data && data.length > 0) {
             data.forEach(item => {
-                const key = `${item.year}-${item.month}`;
-                try {
-                    const cloudRows = JSON.parse(item.data || '[]');
-                    const localRows = expensesData[key] || [];
-                    
-                    // 合并数据（云端优先）
-                    const mergedRows = [...cloudRows];
-                    localRows.forEach(localRow => {
-                        if (!mergedRows.some(cloudRow => 
-                            cloudRow.date === localRow.date && 
-                            cloudRow.type === localRow.type &&
-                            cloudRow.amount === localRow.amount &&
-                            cloudRow.note === localRow.note
-                        )) {
-                            mergedRows.push(localRow);
-                        }
-                    });
-                    
-                    expensesData[key] = mergedRows;
-                } catch (e) {
-                    console.error('解析云端数据失败：', e);
-                }
+                addRow({
+                    id: item.id,
+                    expense_date: item.expense_date,
+                    category: item.category,
+                    amount: item.amount,
+                    note: item.note
+                });
             });
             
-            localStorage.setItem('expensesData', JSON.stringify(expensesData));
-            loadCurrentMonth();
-            showStatus('云端数据加载完成', 'success');
+            // 保存到本地
+            const key = getCurrentKey();
+            localExpenses[key] = data.map(item => ({
+                id: item.id,
+                expense_date: item.expense_date,
+                category: item.category,
+                amount: item.amount,
+                note: item.note
+            }));
+            
+            localStorage.setItem('localExpenses', JSON.stringify(localExpenses));
+            showStatus(`从云端加载了 ${data.length} 条记录`, 'success');
+        } else {
+            showStatus('云端没有该月份的数据', 'info');
         }
+        
+        calc();
     } catch (error) {
         showStatus('加载云端数据异常：' + error.message, 'error');
     }
@@ -624,46 +734,64 @@ async function syncData() {
     showStatus('正在同步到云端...', 'info');
     
     try {
-        // 获取当前月份数据
-        const key = getCurrentKey();
-        const [year, month] = key.split('-');
-        const rows = expensesData[key] || [];
+        const year = parseInt(yearEl.value);
+        const month = parseInt(monthEl.value);
+        const rows = [...tbody.children];
         
-        // 查询是否已存在该月记录
-        const { data: existing } = await supabaseClient
-            .from(currentConfig.tableName)
-            .select('id')
-            .eq('year', parseInt(year))
-            .eq('month', parseInt(month))
-            .limit(1);
+        let successCount = 0;
+        let errorCount = 0;
         
-        if (existing && existing.length > 0) {
-            // 更新现有记录
-            const { error } = await supabaseClient
-                .from(currentConfig.tableName)
-                .update({
-                    data: JSON.stringify(rows),
-                    updated_at: new Date().toISOString()
-                })
-                .eq('year', parseInt(year))
-                .eq('month', parseInt(month));
-                
-            if (error) throw error;
-        } else {
-            // 插入新记录
-            const { error } = await supabaseClient
-                .from(currentConfig.tableName)
-                .insert({
-                    year: parseInt(year),
-                    month: parseInt(month),
-                    data: JSON.stringify(rows),
-                    created_at: new Date().toISOString()
-                });
-                
-            if (error) throw error;
+        for (const tr of rows) {
+            const inputs = tr.querySelectorAll("input,select");
+            const rowData = {
+                year: year,
+                month: month,
+                expense_date: inputs[0].value,
+                category: inputs[1].value,
+                amount: parseFloat(inputs[2].value) || 0,
+                note: inputs[3].value
+            };
+            
+            const rowId = tr.dataset.id;
+            
+            try {
+                if (rowId) {
+                    // 更新现有记录
+                    const { error } = await supabaseClient
+                        .from(currentConfig.tableName)
+                        .update(rowData)
+                        .eq('id', rowId);
+                        
+                    if (error) throw error;
+                } else {
+                    // 插入新记录
+                    const { data, error } = await supabaseClient
+                        .from(currentConfig.tableName)
+                        .insert(rowData)
+                        .select();
+                        
+                    if (error) throw error;
+                    
+                    // 保存返回的ID
+                    if (data && data[0]) {
+                        tr.dataset.id = data[0].id;
+                    }
+                }
+                successCount++;
+            } catch (err) {
+                console.error('同步单条记录失败:', err);
+                errorCount++;
+            }
         }
         
-        showStatus('✅ 同步成功！', 'success');
+        // 更新本地存储中的ID
+        saveLocalData();
+        
+        if (errorCount > 0) {
+            showStatus(`同步完成：${successCount}条成功，${errorCount}条失败`, 'error');
+        } else {
+            showStatus(`✅ 同步完成：${successCount}条记录已保存到云端`, 'success');
+        }
     } catch (error) {
         showStatus('同步失败：' + error.message, 'error');
     }
@@ -674,10 +802,12 @@ function calc() {
     let total = 0;
     const map = {};
     [...tbody.children].forEach(tr => {
-        const amt = parseFloat(tr.querySelectorAll("input")[1].value) || 0;
-        const type = tr.querySelector("select").value;
+        const amt = parseFloat(tr.querySelector(".amount-input")?.value) || 0;
+        const type = tr.querySelector(".category-select")?.value || '';
         total += amt;
-        map[type] = (map[type] || 0) + amt;
+        if (type) {
+            map[type] = (map[type] || 0) + amt;
+        }
     });
     
     document.getElementById("total").textContent = total.toFixed(2);
@@ -694,10 +824,11 @@ document.addEventListener('DOMContentLoaded', init);
 document.getElementById("addRow").onclick = () => {
     addRow();
     saveLocalData();
-    syncData();
 };
 
-yearEl.onchange = monthEl.onchange = loadCurrentMonth;
+yearEl.onchange = monthEl.onchange = () => {
+    loadCurrentMonth();
+};
 
 /* ========= Excel导出 ========= */
 document.getElementById("export").onclick = () => {
@@ -714,8 +845,9 @@ document.getElementById("export").onclick = () => {
     
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), "月度花销");
-    XLSX.writeFile(wb, `${yearEl.value}年${parseInt(monthEl.value) + 1}月花销.xlsx`);
-    showStatus('Excel导出成功！', 'success');
+    const fileName = `${yearEl.value}年${parseInt(monthEl.value) + 1}月花销.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    showStatus(`Excel文件"${fileName}"导出成功！`, 'success');
 };
 </script>
 </body>
