@@ -122,11 +122,15 @@ th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; }
 <script>
 // === 配置 ===
 const SUPABASE_URL = 'https://lhmegseratwrdomkuikk.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_vG66XSCR6tYWuQD3-8Ta6Q_MP_cw39B'; // 你的 anon key
+const SUPABASE_KEY = 'sb_publishable_vG66XSCR6tYWuQD3-8Ta6Q_MP_cw39B';
 
-// 初始化客户端（使用 window 对象避免重复）
-window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const supabase = window.supabaseClient; // 引用副本
+// 只初始化一次
+const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+
+
 
 // === 登录状态管理 ===
 let currentUser = null;
