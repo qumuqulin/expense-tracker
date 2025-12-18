@@ -1,275 +1,418 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>月度花销记账表</title>
-
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background:#f5f7fa;
-  padding:20px;
-}
-.container {
-  max-width:1100px;
-  margin:auto;
-  background:#fff;
-  border-radius:12px;
-  padding:20px;
-  box-shadow:0 6px 16px rgba(0,0,0,.1);
-}
-h1 { text-align:center; margin-bottom:15px; }
-
-.controls {
-  display:flex;
-  justify-content:space-between;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-bottom:15px;
-}
-
-button {
-  padding:8px 12px;
-  border:none;
-  border-radius:6px;
-  background:#3498db;
-  color:#fff;
-  cursor:pointer;
-}
-button:hover { background:#2980b9; }
-.delete-btn { background:#e74c3c; }
-
-table {
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px;
-}
-th,td {
-  border-bottom:1px solid #ddd;
-  padding:8px;
-  text-align:left;
-}
-
-.summary {
-  margin-top:15px;
-  background:#f8f9fa;
-  padding:12px;
-  border-radius:8px;
-}
-.summary strong { font-size:18px; }
-
-#auth-box {
-  margin-bottom:20px;
-  padding:15px;
-  border:1px solid #ddd;
-  border-radius:8px;
-}
-#auth-msg {
-  margin-top:8px;
-  font-size:14px;
-  color:#e74c3c;
-}
-
-@media (max-width:600px) {
-  table input { width:100%; }
-}
-</style>
-
-<!-- ✅ Supabase 官方 SDK（唯一需要的外部依赖） -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-/* ================= Supabase 初始化 ================= */
-const SUPABASE_URL = 'https://lhmegseratwrdomkuikk.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_vG66XSCR6tYWuQD3-8Ta6Q_MP_cw39B';
-
-const supabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
-
-let currentUser = null;
-</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supabase云端表格</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .config-section {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      border-left: 4px solid #007bff;
+    }
+    .config-section h3 {
+      margin-top: 0;
+      color: #007bff;
+    }
+    .config-input {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0 15px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    .btn:hover {
+      background: #0056b3;
+    }
+    .btn-success {
+      background: #28a745;
+    }
+    .btn-success:hover {
+      background: #1e7e34;
+    }
+    .btn-danger {
+      background: #dc3545;
+    }
+    .btn-danger:hover {
+      background: #c82333;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #f8f9fa;
+      font-weight: 600;
+    }
+    tr:hover {
+      background-color: #f5f5f5;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      display: none;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+      display: block;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+  </style>
 </head>
-
 <body>
-<div class="container">
-  <h1>月度花销记账表</h1>
-
-  <!-- 登录区域 -->
-  <div id="auth-box"></div>
-
-  <div class="controls">
-    <div>
-      <select id="year"></select>
-      <select id="month"></select>
+  <div class="container">
+    <h1>📊 Supabase云端表格</h1>
+    <p>在任何设备上访问，数据实时同步</p>
+    
+    <!-- 配置区域 -->
+    <div class="config-section" id="configSection">
+      <h3>🔧 Supabase配置</h3>
+      <p>首次使用需要配置（配置会保存在本地，下次自动加载）</p>
+      <div>
+        <label>Supabase URL:</label>
+        <input type="text" id="supabaseUrl" class="config-input" 
+               placeholder="https://kfdzcdexvwxolhsllowm.supabase.co">
+      </div>
+      <div>
+        <label>Supabase Anon Key:</label>
+        <input type="text" id="supabaseKey" class="config-input" 
+               placeholder="sb_publishable_04MJR0oqDN4jXwK38JRpKw_KQo-xPbc">
+      </div>
+      <div>
+        <label>表名:</label>
+        <input type="text" id="tableName" class="config-input" 
+               placeholder="notes" value="notes">
+      </div>
+      <button class="btn btn-success" onclick="saveConfig()">💾 保存配置</button>
+      <button class="btn" onclick="testConnection()">🔗 测试连接</button>
     </div>
-    <button onclick="addRow()">＋ 添加记录</button>
+
+    <!-- 状态显示 -->
+    <div id="status" class="status"></div>
+
+    <!-- 操作按钮 -->
+    <div id="actionButtons" style="display:none;">
+      <button class="btn" onclick="addRow()">➕ 添加一行</button>
+      <button class="btn" onclick="refreshData()">🔄 刷新数据</button>
+      <button class="btn btn-danger" onclick="clearAll()">🗑️ 清空所有</button>
+    </div>
+
+    <!-- 数据表格 -->
+    <div id="tableContainer">
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>内容</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr>
+            <td colspan="4" class="loading">加载中...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>日期</th>
-        <th>类型</th>
-        <th>金额</th>
-        <th>备注</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
+  <script>
+    // 全局变量
+    let supabaseClient = null;
+    let currentConfig = null;
 
-  <div class="summary">
-    总花销：¥ <strong id="total">0</strong>
-  </div>
-</div>
+    // 页面加载
+    document.addEventListener('DOMContentLoaded', function() {
+      loadConfig();
+    });
 
-<script>
-/* ================= 年月初始化 ================= */
-const yearSel = document.getElementById('year');
-const monthSel = document.getElementById('month');
+    // 加载本地配置
+    function loadConfig() {
+      const savedConfig = localStorage.getItem('supabaseConfig');
+      if (savedConfig) {
+        currentConfig = JSON.parse(savedConfig);
+        document.getElementById('supabaseUrl').value = currentConfig.url;
+        document.getElementById('supabaseKey').value = currentConfig.key;
+        document.getElementById('tableName').value = currentConfig.tableName;
+        
+        // 自动初始化
+        initSupabase();
+      }
+    }
 
-const now = new Date();
-for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 1; y++) {
-  yearSel.innerHTML += `<option ${y===now.getFullYear()?'selected':''}>${y}</option>`;
-}
-for (let m = 1; m <= 12; m++) {
-  monthSel.innerHTML += `<option ${m===now.getMonth()+1?'selected':''}>${m}</option>`;
-}
+    // 保存配置
+    function saveConfig() {
+      const url = document.getElementById('supabaseUrl').value.trim();
+      const key = document.getElementById('supabaseKey').value.trim();
+      const tableName = document.getElementById('tableName').value.trim() || 'notes';
 
-/* ================= Auth UI ================= */
-const authBox = document.getElementById('auth-box');
+      if (!url || !key) {
+        showStatus('请填写完整的配置信息', 'error');
+        return;
+      }
 
-function renderAuth() {
-  if (currentUser) {
-    authBox.innerHTML = `
-      已登录：${currentUser.email}
-      <button onclick="logout()">退出</button>
-    `;
-  } else {
-    authBox.innerHTML = `
-      <input id="email" placeholder="邮箱">
-      <input id="pwd" type="password" placeholder="密码">
-      <button onclick="login()">登录</button>
-      <button onclick="signup()">注册</button>
-      <div id="auth-msg"></div>
-    `;
-  }
-}
+      currentConfig = { url, key, tableName };
+      localStorage.setItem('supabaseConfig', JSON.stringify(currentConfig));
+      showStatus('配置已保存！', 'success');
+      
+      initSupabase();
+    }
 
-function showAuth(msg) {
-  document.getElementById('auth-msg').textContent = msg;
-}
+    // 初始化Supabase
+    function initSupabase() {
+      try {
+        supabaseClient = window.supabase.createClient(
+          currentConfig.url,
+          currentConfig.key
+        );
+        
+        document.getElementById('configSection').style.display = 'none';
+        document.getElementById('actionButtons').style.display = 'block';
+        showStatus('Supabase初始化成功，正在加载数据...', 'success');
+        
+        loadData();
+      } catch (error) {
+        showStatus('初始化失败：' + error.message, 'error');
+      }
+    }
 
-async function login() {
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('pwd').value;
+    // 显示状态
+    function showStatus(message, type = 'info') {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = message;
+      statusDiv.className = 'status ' + type;
+      
+      // 5秒后自动隐藏
+      if (type !== 'error') {
+        setTimeout(() => {
+          statusDiv.className = 'status';
+        }, 5000);
+      }
+    }
 
-  const { data, error } =
-    await supabase.auth.signInWithPassword({ email, password });
+    // 加载数据
+    async function loadData() {
+      if (!supabaseClient || !currentConfig) return;
 
-  if (error) return showAuth(error.message);
-  currentUser = data.user;
-  renderAuth();
-  loadCloud();
-}
+      try {
+        const { data, error } = await supabaseClient
+          .from(currentConfig.tableName)
+          .select('*')
+          .order('created_at', { ascending: false });
 
-async function signup() {
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('pwd').value;
+        if (error) {
+          showStatus('加载失败：' + error.message, 'error');
+          return;
+        }
 
-  const { error } =
-    await supabase.auth.signUp({ email, password });
+        renderTable(data);
+        showStatus(`加载成功，共 ${data.length} 条记录`, 'success');
+      } catch (error) {
+        showStatus('加载数据时出错：' + error.message, 'error');
+      }
+    }
 
-  if (error) return showAuth(error.message);
-  showAuth('注册成功，请登录');
-}
+    // 渲染表格
+    function renderTable(data) {
+      const tbody = document.getElementById('tableBody');
+      
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" style="text-align:center; color:#666;">
+              暂无数据，点击"添加一行"开始
+            </td>
+          </tr>
+        `;
+        return;
+      }
 
-async function logout() {
-  await supabase.auth.signOut();
-  currentUser = null;
-  renderAuth();
-}
+      tbody.innerHTML = data.map(item => `
+        <tr>
+          <td>${item.id}</td>
+          <td>${item.content || ''}</td>
+          <td>${new Date(item.created_at).toLocaleString('zh-CN')}</td>
+          <td>
+            <button onclick="deleteRow(${item.id})" style="
+              background: #dc3545;
+              color: white;
+              border: none;
+              padding: 5px 10px;
+              border-radius: 3px;
+              cursor: pointer;
+              font-size: 12px;
+            ">删除</button>
+          </td>
+        </tr>
+      `).join('');
+    }
 
-/* ================= 表格逻辑 ================= */
-const tbody = document.getElementById('tbody');
-function key() {
-  return yearSel.value + '-' + monthSel.value;
-}
+    // 添加行
+    async function addRow() {
+      const content = prompt('请输入内容：');
+      if (!content) return;
 
-function addRow(data={}) {
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td><input type="date" value="${data.date||''}"></td>
-    <td><input value="${data.type||''}"></td>
-    <td><input type="number" value="${data.amount||0}"></td>
-    <td><input value="${data.note||''}"></td>
-    <td><button class="delete-btn">删</button></td>
-  `;
-  tr.querySelector('button').onclick = () => { tr.remove(); save(); };
-  tr.querySelectorAll('input').forEach(i => i.oninput = save);
-  tbody.appendChild(tr);
-  save();
-}
+      try {
+        const { error } = await supabaseClient
+          .from(currentConfig.tableName)
+          .insert({
+            content: content,
+            created_at: new Date().toISOString()
+          });
 
-function save() {
-  const rows = [...tbody.children].map(tr => ({
-    date: tr.children[0].firstChild.value,
-    type: tr.children[1].firstChild.value,
-    amount: +tr.children[2].firstChild.value || 0,
-    note: tr.children[3].firstChild.value
-  }));
+        if (error) {
+          showStatus('添加失败：' + error.message, 'error');
+          return;
+        }
 
-  localStorage.setItem(key(), JSON.stringify(rows));
-  document.getElementById('total').textContent =
-    rows.reduce((s,r)=>s+r.amount,0).toFixed(2);
+        showStatus('添加成功！', 'success');
+        loadData();
+      } catch (error) {
+        showStatus('添加时出错：' + error.message, 'error');
+      }
+    }
 
-  if (currentUser) saveCloud(rows);
-}
+    // 删除行
+    async function deleteRow(id) {
+      if (!confirm('确定要删除这条记录吗？')) return;
 
-function loadLocal() {
-  tbody.innerHTML = '';
-  (JSON.parse(localStorage.getItem(key())) || []).forEach(addRow);
-}
+      try {
+        const { error } = await supabaseClient
+          .from(currentConfig.tableName)
+          .delete()
+          .eq('id', id);
 
-yearSel.onchange = monthSel.onchange = () => {
-  loadLocal();
-  if (currentUser) loadCloud();
-};
+        if (error) {
+          showStatus('删除失败：' + error.message, 'error');
+          return;
+        }
 
-/* ================= 云端同步 ================= */
-async function saveCloud(data) {
-  await supabase.from('expenses').upsert({
-    user_id: currentUser.id,
-    month: key(),
-    data
-  }, { onConflict: 'user_id,month' });
-}
+        showStatus('删除成功！', 'success');
+        loadData();
+      } catch (error) {
+        showStatus('删除时出错：' + error.message, 'error');
+      }
+    }
 
-async function loadCloud() {
-  const { data } = await supabase
-    .from('expenses')
-    .select('data')
-    .eq('user_id', currentUser.id)
-    .eq('month', key())
-    .single();
+    // 清空所有
+    async function clearAll() {
+      if (!confirm('⚠️ 确定要清空所有数据吗？此操作不可撤销！')) return;
 
-  if (data) {
-    tbody.innerHTML = '';
-    data.data.forEach(addRow);
-  }
-}
+      try {
+        const { error } = await supabaseClient
+          .from(currentConfig.tableName)
+          .delete()
+          .neq('id', 0);
 
-/* ================= 启动 ================= */
-(async()=>{
-  const { data:{ session } } = await supabase.auth.getSession();
-  if (session) currentUser = session.user;
-  renderAuth();
-  loadLocal();
-})();
-</script>
+        if (error) {
+          showStatus('清空失败：' + error.message, 'error');
+          return;
+        }
+
+        showStatus('已清空所有数据', 'success');
+        loadData();
+      } catch (error) {
+        showStatus('清空时出错：' + error.message, 'error');
+      }
+    }
+
+    // 刷新数据
+    function refreshData() {
+      loadData();
+    }
+
+    // 测试连接
+    async function testConnection() {
+      const url = document.getElementById('supabaseUrl').value.trim();
+      const key = document.getElementById('supabaseKey').value.trim();
+      const tableName = document.getElementById('tableName').value.trim() || 'notes';
+
+      if (!url || !key) {
+        showStatus('请先填写配置信息', 'error');
+        return;
+      }
+
+      showStatus('正在测试连接...', 'info');
+
+      try {
+        const testClient = window.supabase.createClient(url, key);
+        const { data, error } = await testClient
+          .from(tableName)
+          .select('count', { count: 'exact', head: true });
+
+        if (error) {
+          if (error.message.includes('does not exist')) {
+            showStatus(`表 "${tableName}" 不存在，请在Supabase中创建该表`, 'error');
+          } else {
+            showStatus('连接失败：' + error.message, 'error');
+          }
+        } else {
+          showStatus('✅ 连接成功！可以保存配置了', 'success');
+        }
+      } catch (error) {
+        showStatus('连接测试异常：' + error.message, 'error');
+      }
+    }
+  </script>
 </body>
 </html>
