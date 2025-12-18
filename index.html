@@ -1,723 +1,203 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>月度花销记账表 - 自定义类型</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>月度花销记账表</title>
+
 <style>
-* { box-sizing: border-box; margin:0; padding:0; }
-body { font-family:'Segoe UI', Tahoma, Geneva, Verdana,sans-serif; background:#f5f7fa; padding:20px; }
-.container { max-width:1200px; margin:0 auto; background:white; border-radius:12px; padding:20px; box-shadow:0 5px 15px rgba(0,0,0,0.1);}
-header { text-align:center; margin-bottom:20px;}
-h1 { font-size:2rem; margin-bottom:5px;}
-.controls { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
-button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; background:#3498db; color:white; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background:#f5f7fa; padding:20px; }
+.container { max-width:1100px; margin:auto; background:#fff; border-radius:12px; padding:20px; box-shadow:0 6px 16px rgba(0,0,0,.1); }
+h1 { text-align:center; margin-bottom:15px; }
+
+.controls { display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:15px; }
+button { padding:8px 12px; border:none; border-radius:6px; background:#3498db; color:#fff; cursor:pointer; }
 button:hover { background:#2980b9; }
 .delete-btn { background:#e74c3c; }
-.delete-btn:hover { background:#c0392b; }
-.export-btn { background:#27ae60; }
-.export-btn:hover { background:#219653; }
-.table-container { overflow-x:auto; margin-bottom:20px; }
-table { width:100%; border-collapse:collapse; min-width:600px; }
-th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; }
-.type-water { background:rgba(52,152,219,0.1);}
-.type-food { background:rgba(46,204,113,0.1);}
-.type-transport { background:rgba(155,89,182,0.1);}
-.type-custom { background:rgba(241,196,15,0.1);}
-.summary { background:#f8f9fa; padding:15px; border-radius:8px; }
-.summary-item { background:white; padding:10px; border-radius:6px; margin-bottom:10px;}
-.summary-item.total { background:#3498db; color:white; font-weight:bold; }
-.notification { position:fixed; top:20px; right:20px; background:#27ae60; color:white; padding:10px 15px; border-radius:4px; transform:translateX(100%); transition:transform 0.3s ease; z-index:1000;}
-.notification.show { transform:translateX(0);}
-.notification.error { background:#e74c3c;}
-#custom-types-list { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
 
-/* 手机适配 */
-@media (max-width: 768px) {
-    /* 保持原有的控制和输入框适配 */
-    .controls { flex-direction:column; align-items:stretch; }
-    .month-year-select { display:flex; gap:10px; margin-bottom:10px; }
-    .month-year-select select { flex:1; }
-    .controls button { width:100%; }
-    .custom-type-section input, .custom-type-section button { width:100%; margin-bottom:5px; }
-    
-    /* 核心表格优化：响应式堆叠布局 */
-    .table-container { 
-        overflow-x: hidden; /* 在小屏幕上取消水平滚动 */
-    }
-    table {
-        min-width: unset; /* 取消表格的最小宽度限制 */
-    }
-    table, thead, tbody, th, td, tr {
-        display: block; /* 所有表格元素都变为块级元素 */
-    }
+table { width:100%; border-collapse:collapse; margin-top:10px; }
+th,td { border-bottom:1px solid #ddd; padding:8px; text-align:left; }
 
-    /* 隐藏表头 */
-    thead tr {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-    }
+.summary { margin-top:15px; background:#f8f9fa; padding:12px; border-radius:8px; }
+.summary strong { font-size:18px; }
 
-    /* 优化表格行 (每条记录) */
-    tr {
-        border: 1px solid #ccc; /* 给每条记录加边框，使其更像一个卡片 */
-        margin-bottom: 10px;
-        border-radius: 8px;
-        overflow: hidden; 
-        padding: 0; /* 清除默认内边距 */
-    }
-
-    /* 优化表格单元格 (每条记录中的字段) */
-    td {
-        border: none;
-        border-bottom: 1px solid #eee; /* 用细线分隔字段 */
-        position: relative;
-        padding-left: 50%; /* 留出空间给伪元素标题 */
-        text-align: right;
-        min-height: 40px; /* 确保有足够的空间 */
-    }
-    
-    /* 确保输入框和选择框在右侧居中对齐 */
-    td input, td select {
-        width: 100%;
-        text-align: right;
-        border: none;
-        padding: 0;
-        margin: 0;
-        line-height: 1.2;
-        background: transparent; /* 保持输入框背景透明，使其看起来是单元格的一部分 */
-    }
-
-    /* 使用伪元素显示标题 (数据标签) */
-    td::before {
-        content: attr(data-label); /* 获取自定义的data-label属性作为标题 */
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 40%;
-        padding-right: 10px;
-        white-space: nowrap;
-        text-align: left;
-        font-weight: bold;
-        color: #555;
-    }
-    
-    /* 突出操作按钮 */
-    td:last-child {
-        text-align: center;
-        padding: 10px;
-        border-bottom: none;
-    }
-    td:last-child button {
-        width: 50%;
-        max-width: 200px;
-    }
-}
+#auth-box { margin-bottom:20px; padding:15px; border:1px solid #ddd; border-radius:8px; }
+#auth-msg { margin-top:8px; font-size:14px; }
 </style>
 
-<!-- ========== Supabase + 账号登录系统（修复版） ========== -->
+<!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// === 配置 ===
-const SUPABASE_URL = 'https://lhmegseratwrdomkuikk.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_vG66XSCR6tYWuQD3-8Ta6Q_MP_cw39B';
+/* ========= Supabase 初始化（只此一处） ========= */
+const SUPABASE_URL = 'https://你的项目.supabase.co';
+const SUPABASE_KEY = '你的 publishable / anon key';
 
-// 只初始化一次
 const supabase = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
+  SUPABASE_URL,
+  SUPABASE_KEY
 );
 
-
-
-// === 登录状态管理 ===
 let currentUser = null;
-
-// 初始化：检查登录状态
-async function initAuth() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        currentUser = session.user;
-        updateUIForLoggedInUser();
-        console.log('用户已登录:', currentUser.email);
-        return true;
-    }
-    return false;
-}
-
-// === UI 更新函数 ===
-function updateUIForLoggedInUser() {
-    const container = document.querySelector('.container');
-    
-    // 添加用户信息栏
-    let userBar = document.getElementById('user-info-bar');
-    if (!userBar) {
-        userBar = document.createElement('div');
-        userBar.id = 'user-info-bar';
-        userBar.style.cssText = `
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        `;
-        container.insertBefore(userBar, container.firstChild);
-    }
-    
-    const email = currentUser.email || '用户';
-    userBar.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="background: white; color: #764ba2; width: 36px; height: 36px; border-radius: 50%; 
-                        display: flex; align-items: center; justify-content: center; font-weight: bold;">
-                ${email.charAt(0).toUpperCase()}
-            </div>
-            <div>
-                <div style="font-weight: bold;">${email}</div>
-                <div style="font-size: 0.85em; opacity: 0.9;">数据已云端同步</div>
-            </div>
-        </div>
-        <button id="logout-btn" style="
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
-        ">退出登录</button>
-    `;
-    
-    document.getElementById('logout-btn').addEventListener('click', logout);
-}
-
-function updateUIForLoggedOutUser() {
-    const container = document.querySelector('.container');
-    
-    // 移除用户信息栏
-    const userBar = document.getElementById('user-info-bar');
-    if (userBar) userBar.remove();
-    
-    // 添加登录/注册表单
-    let authForm = document.getElementById('auth-form');
-    if (!authForm) {
-        authForm = document.createElement('div');
-        authForm.id = 'auth-form';
-        authForm.style.cssText = `
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            border: 1px solid #e0e0e0;
-        `;
-        container.insertBefore(authForm, container.firstChild);
-        
-        authForm.innerHTML = `
-            <h2 style="margin-bottom: 20px; color: #333; display: flex; align-items: center; gap: 10px;">
-                <span style="color: #667eea;">🔐</span> 登录 / 注册
-            </h2>
-            <div style="margin-bottom: 15px;">
-                <input type="email" id="auth-email" placeholder="邮箱地址" style="
-                    width: 100%;
-                    padding: 12px;
-                    border: 2px solid #e0e0e0;
-                    border-radius: 8px;
-                    margin-bottom: 10px;
-                    font-size: 16px;
-                    transition: border 0.3s;
-                ">
-                <input type="password" id="auth-password" placeholder="密码" style="
-                    width: 100%;
-                    padding: 12px;
-                    border: 2px solid #e0e0e0;
-                    border-radius: 8px;
-                    margin-bottom: 15px;
-                    font-size: 16px;
-                    transition: border 0.3s;
-                ">
-                <div style="display: flex; gap: 10px;">
-                    <button id="login-btn" style="
-                        flex: 1;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        padding: 12px;
-                        border: none;
-                        border-radius: 8px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        transition: transform 0.2s;
-                    ">登录</button>
-                    <button id="signup-btn" style="
-                        flex: 1;
-                        background: white;
-                        color: #667eea;
-                        padding: 12px;
-                        border: 2px solid #667eea;
-                        border-radius: 8px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        transition: all 0.2s;
-                    ">注册</button>
-                </div>
-            </div>
-            <div id="auth-message" style="
-                padding: 10px;
-                border-radius: 6px;
-                margin-top: 10px;
-                display: none;
-            "></div>
-            <div style="text-align: center; margin-top: 15px; font-size: 14px; color: #666;">
-                登录后数据将自动保存到云端，可在任何设备访问
-            </div>
-        `;
-        
-        // 添加事件监听
-        document.getElementById('login-btn').addEventListener('click', login);
-        document.getElementById('signup-btn').addEventListener('click', signup);
-        
-        // 按回车键登录
-        document.getElementById('auth-password').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
-        });
-    }
-}
-
-// === 登录/注册功能 ===
-async function login() {
-    const email = document.getElementById('auth-email').value.trim();
-    const password = document.getElementById('auth-password').value;
-    const messageDiv = document.getElementById('auth-message');
-    
-    if (!email || !password) {
-        showAuthMessage('请输入邮箱和密码', 'error');
-        return;
-    }
-    
-    showAuthMessage('登录中...', 'info');
-    
-    try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        });
-        
-        if (error) throw error;
-        
-        currentUser = data.user;
-        showAuthMessage('登录成功！', 'success');
-        setTimeout(() => {
-            updateUIForLoggedInUser();
-            // 加载云端数据
-            loadFromCloud();
-        }, 1000);
-        
-    } catch (error) {
-        showAuthMessage(error.message || '登录失败', 'error');
-    }
-}
-
-async function signup() {
-    const email = document.getElementById('auth-email').value.trim();
-    const password = document.getElementById('auth-password').value;
-    const messageDiv = document.getElementById('auth-message');
-    
-    if (!email || !password) {
-        showAuthMessage('请输入邮箱和密码', 'error');
-        return;
-    }
-    
-    if (password.length < 6) {
-        showAuthMessage('密码至少6位', 'error');
-        return;
-    }
-    
-    showAuthMessage('注册中...', 'info');
-    
-    try {
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                emailRedirectTo: 'https://qumuqulin.github.io/expense-tracker/'
-            }
-        });
-        
-        if (error) throw error;
-        
-        showAuthMessage('注册成功！请检查邮箱验证（如需要）', 'success');
-        currentUser = data.user;
-        
-        setTimeout(() => {
-            updateUIForLoggedInUser();
-        }, 1500);
-        
-    } catch (error) {
-        showAuthMessage(error.message || '注册失败', 'error');
-    }
-}
-
-async function logout() {
-    await supabase.auth.signOut();
-    currentUser = null;
-    updateUIForLoggedOutUser();
-    showNotification('已退出登录');
-}
-
-// === 云同步功能 ===
-async function saveToCloud(expensesData) {
-    if (!currentUser) return;
-    
-    try {
-        const yearSelect = document.getElementById('year-select');
-        const monthSelect = document.getElementById('month-select');
-        
-        if (!yearSelect || !monthSelect) {
-            console.error('找不到日期选择器');
-            return;
-        }
-        
-        const year = yearSelect.value;
-        const month = (parseInt(monthSelect.value) + 1)
-            .toString().padStart(2, '0');
-        const monthYear = `${year}-${month}`;
-        
-        const { error } = await supabase
-            .from('expenses')
-            .upsert({
-                user_id: currentUser.id,
-                month_year: monthYear,
-                data: expensesData,
-                updated_at: new Date().toISOString()
-            }, {
-                onConflict: 'user_id,month_year'
-            });
-        
-        if (error) throw error;
-        
-        console.log('✅ 数据已保存到云端');
-        return true;
-        
-    } catch (error) {
-        console.error('保存到云端失败:', error.message);
-        return false;
-    }
-}
-
-async function loadFromCloud() {
-    if (!currentUser) return null;
-    
-    try {
-        const yearSelect = document.getElementById('year-select');
-        const monthSelect = document.getElementById('month-select');
-        
-        if (!yearSelect || !monthSelect) return null;
-        
-        const year = yearSelect.value;
-        const month = (parseInt(monthSelect.value) + 1)
-            .toString().padStart(2, '0');
-        const monthYear = `${year}-${month}`;
-        
-        const { data, error } = await supabase
-            .from('expenses')
-            .select('data')
-            .eq('user_id', currentUser.id)
-            .eq('month_year', monthYear)
-            .single();
-        
-        if (error) {
-            if (error.code === 'PGRST116') return null; // 无数据
-            throw error;
-        }
-        
-        console.log('✅ 从云端加载数据成功');
-        return data.data;
-        
-    } catch (error) {
-        console.error('从云端加载失败:', error.message);
-        return null;
-    }
-}
-
-// === 工具函数 ===
-function showAuthMessage(message, type = 'info') {
-    const messageDiv = document.getElementById('auth-message');
-    if (!messageDiv) return;
-    
-    messageDiv.textContent = message;
-    messageDiv.style.display = 'block';
-    messageDiv.style.background = 
-        type === 'error' ? '#fee' : 
-        type === 'success' ? '#efc' : '#eef';
-    messageDiv.style.color = 
-        type === 'error' ? '#c33' : 
-        type === 'success' ? '#363' : '#336';
-    messageDiv.style.border = `1px solid ${
-        type === 'error' ? '#fcc' : 
-        type === 'success' ? '#cfc' : '#ccf'
-    }`;
-}
-
-// === 初始化 ===
-document.addEventListener('DOMContentLoaded', async function() {
-    // 等待页面加载
-    setTimeout(async () => {
-        const isLoggedIn = await initAuth();
-        
-        if (!isLoggedIn) {
-            updateUIForLoggedOutUser();
-            console.log('用户未登录，显示登录界面');
-        } else {
-            // 已登录，加载云端数据
-            const cloudData = await loadFromCloud();
-            if (cloudData && cloudData.length > 0) {
-                // 与本地数据合并或替换
-                const localKey = getSelectedYearMonth();
-                const localData = JSON.parse(localStorage.getItem(localKey) || '[]');
-                
-                if (localData.length === 0) {
-                    const tbody = document.querySelector('#expense-table tbody');
-                    if (tbody) {
-                        tbody.innerHTML = '';
-                        cloudData.forEach(d => {
-                            addRowToTable(d.date, d.type, d.amount, d.notes, d.id);
-                        });
-                        calculateSummary();
-                        showNotification('已从云端恢复数据');
-                    }
-                }
-            }
-        }
-        
-    }, 500);
-    
-    // 监听认证状态变化
-    supabase.auth.onAuthStateChange((event, session) => {
-        console.log('认证状态变化:', event);
-        if (event === 'SIGNED_IN' && session) {
-            currentUser = session.user;
-            updateUIForLoggedInUser();
-            loadFromCloud();
-        } else if (event === 'SIGNED_OUT') {
-            currentUser = null;
-            updateUIForLoggedOutUser();
-        }
-    });
-});
 </script>
-<!-- ========== 账号登录系统结束 ========== -->
-
 </head>
 
 <body>
 <div class="container">
-    <header>
-        <h1>月度花销记账表</h1>
-    </header>
+  <h1>月度花销记账表</h1>
 
-    <div class="controls">
-        <div class="month-year-select">
-            <select id="month-select"></select>
-            <select id="year-select"></select>
-        </div>
-        <div>
-            <button id="add-row">+ 添加记录</button>
-            <button id="export-xlsx" class="export-btn">导出 Excel</button>
-        </div>
-    </div>
+  <!-- 登录框 -->
+  <div id="auth-box"></div>
 
-    <div class="custom-type-section">
-        <input type="text" id="new-type-input" placeholder="输入新的花销类型">
-        <button id="add-type">添加类型</button>
-        <div id="custom-types-list"></div>
+  <div class="controls">
+    <div>
+      <select id="year"></select>
+      <select id="month"></select>
     </div>
+    <button onclick="addRow()">＋ 添加记录</button>
+  </div>
 
-    <div class="table-container">
-        <table id="expense-table">
-            <thead>
-                <tr>
-                    <th>日期</th>
-                    <th>类型</th>
-                    <th>金额</th>
-                    <th>备注</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
+  <table>
+    <thead>
+      <tr>
+        <th>日期</th><th>类型</th><th>金额</th><th>备注</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
 
-    <div class="summary" id="summary-grid">
-        <div class="summary-item total">
-            总花销: ¥<span id="total-expense">0</span>
-        </div>
-    </div>
+  <div class="summary">
+    总花销：¥ <strong id="total">0</strong>
+  </div>
 </div>
 
-<div class="notification" id="notification"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const expenseTypes = ['水','食物','出行'];
-    let customTypes = [];
+/* ========= 初始化年月 ========= */
+const yearSel = document.getElementById('year');
+const monthSel = document.getElementById('month');
 
-    const monthSelect = document.getElementById('month-select');
-    const yearSelect = document.getElementById('year-select');
+const now = new Date();
+for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 1; y++) {
+  yearSel.innerHTML += `<option ${y===now.getFullYear()?'selected':''}>${y}</option>`;
+}
+['1','2','3','4','5','6','7','8','9','10','11','12']
+  .forEach((m,i)=>monthSel.innerHTML+=`<option ${i===now.getMonth()?'selected':''}>${m}</option>`);
 
-    // 初始化月份
-    ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'].forEach((m,i)=>{
-        const opt = document.createElement('option'); opt.value=i; opt.textContent=m; monthSelect.appendChild(opt);
-    });
-    monthSelect.value = new Date().getMonth();
+/* ========= Auth UI ========= */
+const authBox = document.getElementById('auth-box');
 
-    // 初始化年份
-    const currentYear = new Date().getFullYear();
-    for(let y=currentYear-5;y<=currentYear+1;y++){
-        const opt = document.createElement('option'); opt.value=y; opt.textContent=y; if(y===currentYear) opt.selected=true; yearSelect.appendChild(opt);
-    }
+function renderAuth() {
+  if (currentUser) {
+    authBox.innerHTML = `
+      已登录：${currentUser.email}
+      <button onclick="logout()">退出</button>
+    `;
+  } else {
+    authBox.innerHTML = `
+      <input id="email" placeholder="邮箱">
+      <input id="pwd" type="password" placeholder="密码">
+      <button onclick="login()">登录</button>
+      <button onclick="signup()">注册</button>
+      <div id="auth-msg"></div>
+    `;
+  }
+}
 
-    loadCustomTypes();
-    loadExpenseData();
-    calculateSummary();
+async function login() {
+  const email = email.value, password = pwd.value;
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return showAuth(error.message);
+  currentUser = data.user;
+  renderAuth();
+  loadCloud();
+}
 
-    document.getElementById('add-row').addEventListener('click', addNewRow);
-    document.getElementById('add-type').addEventListener('click', addCustomType);
-    monthSelect.addEventListener('change', loadExpenseData);
-    yearSelect.addEventListener('change', loadExpenseData);
-    document.getElementById('export-xlsx').addEventListener('click', generateXLSX);
+async function signup() {
+  const email = email.value, password = pwd.value;
+  const { error } = await supabase.auth.signUp({ email, password });
+  if (error) return showAuth(error.message);
+  showAuth('注册成功，可直接登录');
+}
 
-    function showNotification(msg, isError=false){
-        const n=document.getElementById('notification'); n.textContent=msg; n.classList.remove('error'); if(isError) n.classList.add('error'); n.classList.add('show');
-        setTimeout(()=>n.classList.remove('show'),3000);
-    }
+async function logout() {
+  await supabase.auth.signOut();
+  currentUser = null;
+  renderAuth();
+}
 
-    function getSelectedYearMonth(){ 
-        const month=(parseInt(monthSelect.value)+1).toString().padStart(2,'0'); 
-        return `${yearSelect.value}-${month}`; 
-    }
-    function getSelectedYearMonthText(){ 
-        const monthNames=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
-        return `${yearSelect.value}年${monthNames[parseInt(monthSelect.value)]}`;
-    }
+function showAuth(msg) {
+  document.getElementById('auth-msg').textContent = msg;
+}
 
-    function loadCustomTypes(){
-        const saved = localStorage.getItem('customExpenseTypes');
-        if(saved) customTypes = JSON.parse(saved);
-        updateCustomTypesDisplay();
-    }
-    function saveCustomTypes(){ localStorage.setItem('customExpenseTypes', JSON.stringify(customTypes)); }
-    function updateCustomTypesDisplay(){
-        const list=document.getElementById('custom-types-list'); list.innerHTML='';
-        customTypes.forEach(type=>{
-            const tag=document.createElement('div'); tag.style.display='inline-block'; tag.style.marginRight='5px';
-            tag.style.background='#3498db'; tag.style.color='white'; tag.style.padding='3px 8px'; tag.style.borderRadius='10px';
-            tag.innerHTML=`${type} <span style="cursor:pointer;" data-type="${type}">×</span>`;
-            list.appendChild(tag);
-        });
-        document.querySelectorAll('#custom-types-list span').forEach(sp=>sp.addEventListener('click',()=>{ removeCustomType(sp.dataset.type); }));
-    }
-    function addCustomType(){
-        const input=document.getElementById('new-type-input'); const t=input.value.trim(); if(!t){showNotification('请输入类型',true); return;}
-        if(expenseTypes.includes(t) || customTypes.includes(t)){showNotification('类型已存在',true); return;}
-        customTypes.push(t); saveCustomTypes(); updateCustomTypesDisplay(); input.value=''; showNotification(`类型 "${t}" 添加成功`);
-        updateTypeSelects();
-    }
-    function removeCustomType(t){ customTypes=customTypes.filter(x=>x!==t); saveCustomTypes(); updateCustomTypesDisplay(); loadExpenseData(); showNotification(`类型 "${t}" 已删除`); }
+/* ========= 表格逻辑 ========= */
+const tbody = document.getElementById('tbody');
+function key() { return yearSel.value + '-' + monthSel.value; }
 
-    function addNewRow(){
-        const today=new Date();
-        const date=`${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
-        // 新记录默认类型设为“食物”
-        addRowToTable(date,'食物','', '', Date.now()); 
-    }
+function addRow(data={}) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="date" value="${data.date||''}"></td>
+    <td><input value="${data.type||''}"></td>
+    <td><input type="number" value="${data.amount||0}"></td>
+    <td><input value="${data.note||''}"></td>
+    <td><button class="delete-btn">删</button></td>
+  `;
+  tr.querySelector('button').onclick=()=>{tr.remove();save()};
+  tr.querySelectorAll('input').forEach(i=>i.oninput=save);
+  tbody.appendChild(tr);
+  save();
+}
 
-    function addRowToTable(date,type,amount,notes,id){
-        const tbody=document.querySelector('#expense-table tbody'); 
-        const row=document.createElement('tr'); row.dataset.id=id;
-        const typeClass=getTypeClass(type); row.className=`type-${typeClass}`;
-        
-        // **【修改点】**：为每个 <td> 添加 data-label 属性，用于手机端显示标签
-        row.innerHTML=`
-            <td data-label="日期"><input type="date" value="${date}" class="date-input"></td>
-            <td data-label="类型"><select class="type-select"></select></td>
-            <td data-label="金额"><input type="number" value="${amount}" class="amount-input" min="0" step="0.01"></td>
-            <td data-label="备注"><input type="text" value="${notes}" class="notes-input"></td>
-            <td data-label="操作"><button class="delete-btn">删除</button></td>
-        `;
-        // **【修改点结束】**
+function save() {
+  const rows = [...tbody.children].map(tr=>({
+    date:tr.children[0].firstChild.value,
+    type:tr.children[1].firstChild.value,
+    amount:+tr.children[2].firstChild.value||0,
+    note:tr.children[3].firstChild.value
+  }));
+  localStorage.setItem(key(), JSON.stringify(rows));
+  document.getElementById('total').textContent =
+    rows.reduce((s,r)=>s+r.amount,0).toFixed(2);
 
-        const select=row.querySelector('.type-select'); updateSingleTypeSelect(select,type);
-        row.querySelectorAll('input, select').forEach(el=>el.addEventListener('input', saveExpenseData));
-        row.querySelector('.delete-btn').addEventListener('click',()=>{ row.remove(); saveExpenseData(); });
-        tbody.appendChild(row);
-        saveExpenseData();
-    }
+  if (currentUser) saveCloud(rows);
+}
 
-    function updateSingleTypeSelect(select,val){
-        const all=[...expenseTypes,...customTypes]; select.innerHTML=''; all.forEach(t=>{ const opt=document.createElement('option'); opt.value=t; opt.textContent=t; if(t===val) opt.selected=true; select.appendChild(opt); });
-        select.addEventListener('change', saveExpenseData);
-    }
+function loadLocal() {
+  tbody.innerHTML='';
+  (JSON.parse(localStorage.getItem(key()))||[]).forEach(addRow);
+}
 
-    function updateTypeSelects(){
-        document.querySelectorAll('.type-select').forEach(s=>{ const val=s.value; updateSingleTypeSelect(s,val); });
-    }
+yearSel.onchange = monthSel.onchange = ()=>{ loadLocal(); if(currentUser) loadCloud(); };
 
-    function getTypeClass(t){ if(t==='水') return 'water'; if(t==='食物') return 'food'; if(t==='出行') return 'transport'; return 'custom'; }
+/* ========= 云端 ========= */
+async function saveCloud(data) {
+  await supabase.from('expenses').upsert({
+    user_id: currentUser.id,
+    month: key(),
+    data
+  },{onConflict:'user_id,month'});
+}
 
-    function saveExpenseData(){
-        const rows=document.querySelectorAll('#expense-table tbody tr');
-        const data=Array.from(rows).map(r=>({
-            id:r.dataset.id, date:r.querySelector('.date-input').value,
-            type:r.querySelector('.type-select').value,
-            amount:parseFloat(r.querySelector('.amount-input').value)||0,
-            notes:r.querySelector('.notes-input').value
-        }));
-        localStorage.setItem(getSelectedYearMonth(),JSON.stringify(data));
-        calculateSummary();
+async function loadCloud() {
+  const { data } = await supabase
+    .from('expenses')
+    .select('data')
+    .eq('user_id', currentUser.id)
+    .eq('month', key())
+    .single();
+  if (data) {
+    tbody.innerHTML='';
+    data.data.forEach(addRow);
+  }
+}
 
-        // 调用云保存函数
-        if (typeof saveToCloud === 'function') {
-            saveToCloud(data);
-        }
-
-    }
-
-    function loadExpenseData(){
-        const tbody=document.querySelector('#expense-table tbody'); tbody.innerHTML='';
-        const key=getSelectedYearMonth();
-        const data=JSON.parse(localStorage.getItem(key))||[];
-        data.forEach(d=>addRowToTable(d.date,d.type,d.amount,d.notes,d.id));
-        calculateSummary();
-    }
-
-    function calculateSummary(){
-        const rows=document.querySelectorAll('#expense-table tbody tr');
-        let total=0; const typeMap={}; [...expenseTypes,...customTypes].forEach(t=>typeMap[t]={amount:0,count:0});
-        rows.forEach(r=>{ const amt=parseFloat(r.querySelector('.amount-input').value)||0; const t=r.querySelector('.type-select').value; total+=amt; if(!typeMap[t]) typeMap[t]={amount:0,count:0}; typeMap[t].amount+=amt; typeMap[t].count+=1; });
-        const grid=document.getElementById('summary-grid'); const totalDiv=grid.querySelector('.total'); grid.innerHTML=''; grid.appendChild(totalDiv); document.getElementById('total-expense').textContent=total.toFixed(2);
-        Object.keys(typeMap).forEach(t=>{ const d=typeMap[t]; if(d.count>0){ const div=document.createElement('div'); div.className='summary-item'; div.innerHTML=`${t}: ¥${d.amount.toFixed(2)} (次数:${d.count})`; grid.appendChild(div); }});
-    }
-
-    function generateXLSX(){
-        try{
-            const monthYear=getSelectedYearMonthText();
-            const rows=document.querySelectorAll('#expense-table tbody tr');
-            const data=[["日期","类型","金额","备注"]];
-            rows.forEach(r=>{ data.push([r.querySelector('.date-input').value,r.querySelector('.type-select').value,r.querySelector('.amount-input').value,r.querySelector('.notes-input').value]); });
-            const wb=XLSX.utils.book_new(); const ws=XLSX.utils.aoa_to_sheet(data);
-            ws['!cols']=[{wch:15},{wch:15},{wch:12},{wch:40}];
-            XLSX.utils.book_append_sheet(wb,ws,"花销记录"); XLSX.writeFile(wb,`${monthYear}花销记录.xlsx`);
-            showNotification("Excel 导出成功！");
-        }catch(e){ console.error(e); showNotification("Excel 导出失败",true); }
-    }
-});
+/* ========= 启动 ========= */
+(async()=>{
+  const { data:{session} } = await supabase.auth.getSession();
+  if (session) currentUser = session.user;
+  renderAuth();
+  loadLocal();
+})();
 </script>
 </body>
 </html>
-
