@@ -30,8 +30,8 @@ th,td { border-bottom:1px solid #ddd; padding:8px; text-align:left; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ========= Supabase 初始化（只此一处） ========= */
-const SUPABASE_URL = 'https://lhmegseratwrdomkuikk.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_vG66XSCR6tYWuQD3-8Ta6Q_MP_cw39B';
+const SUPABASE_URL = 'https://你的项目.supabase.co';
+const SUPABASE_KEY = '你的 publishable / anon key';
 
 const supabase = window.supabase.createClient(
   SUPABASE_URL,
@@ -171,7 +171,8 @@ yearSel.onchange = monthSel.onchange = ()=>{ loadLocal(); if(currentUser) loadCl
 
 /* ========= 云端 ========= */
 async function saveCloud(data) {
-  await supabase.from('expenses').upsert({
+    if (!currentUser) return;
+    await supabase.from('expenses').upsert({
     user_id: currentUser.id,
     month: key(),
     data
@@ -179,6 +180,7 @@ async function saveCloud(data) {
 }
 
 async function loadCloud() {
+    if (!currentUser) return; // ⭐关键
   const { data } = await supabase
     .from('expenses')
     .select('data')
@@ -201,4 +203,3 @@ async function loadCloud() {
 </script>
 </body>
 </html>
-
