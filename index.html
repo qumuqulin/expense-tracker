@@ -116,7 +116,153 @@ th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; }
     }
 }
 </style>
+
+<!-- ========== 添加 Supabase 代码（开始）========== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// === 配置部分 ===
+const SUPABASE_URL = 'https://lhmegseratwrdomkuikk.supabase.co';  // 🔄 这里填你的 URL
+const SUPABASE_KEY = 'esb_publishable_vG66XSCR6tYWuQD3-8Ta6Q_MP_cw39B';      // 🔄 这里填你的 KEY
+
+// 创建客户端
+let supabaseClient = null;
+
+// 初始化 Supabase
+async function initSupabase() {
+    if (!SUPABASE_URL.includes('你的项目') && !SUPABASE_KEY.includes('eyJhbGci')) {
+        const { createClient } = supabase;
+        supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // 尝试自动登录（匿名用户）
+        try {
+            const { data, error } = await supabaseClient.auth.signInAnonymously();
+            if (error) {
+                console.warn('匿名登录失败，将继续使用本地存储:', error.message);
+            } else {
+                console.log('✅ Supabase 初始化成功，用户ID:', data.user?.id);
+            }
+        } catch (e) {
+            console.warn('Supabase 连接失败，将使用本地存储:', e.message);
+        }
+    }
+}
+
+// 保存数据到云端（同时保持本地存储）
+async function saveToCloud(expensesData) {
+    if (!supabaseClient) return;
+    
+    try {
+        // 获取当前用户
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) return;
+        
+        const key = getSelectedYearMonth();
+        const monthYear = key; // 格式: 2024-01
+        
+        // 保存到云端
+        const { error } = await supabaseClient
+            .from('expenses')
+            .upsert({
+                user_id: user.id,
+                month_year: monthYear,
+                data: expensesData,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,month_year'
+            });
+        
+        if (error) throw error;
+        console.log('✅ 数据已保存到云端');
+    } catch (error) {
+        console.warn('云端保存失败:', error.message);
+    }
+}
+
+// 从云端加载数据
+async function loadFromCloud() {
+    if (!supabaseClient) return null;
+    
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) return null;
+        
+        const key = getSelectedYearMonth();
+        const monthYear = key;
+        
+        const { data, error } = await supabaseClient
+            .from('expenses')
+            .select('data')
+            .eq('user_id', user.id)
+            .eq('month_year', monthYear)
+            .single();
+        
+        if (error) throw error;
+        return data?.data || null;
+    } catch (error) {
+        console.warn('云端加载失败:', error.message);
+        return null;
+    }
+}
+
+// 修改现有的 saveExpenseData 函数，添加云同步
+const originalSaveExpenseData = window.saveExpenseData;
+window.saveExpenseData = function() {
+    // 调用原始函数保存到本地
+    if (originalSaveExpenseData) originalSaveExpenseData();
+    
+    // 获取当前数据
+    const rows = document.querySelectorAll('#expense-table tbody tr');
+    const data = Array.from(rows).map(r => ({
+        id: r.dataset.id,
+        date: r.querySelector('.date-input').value,
+        type: r.querySelector('.type-select').value,
+        amount: parseFloat(r.querySelector('.amount-input').value) || 0,
+        notes: r.querySelector('.notes-input').value
+    }));
+    
+    // 保存到云端
+    saveToCloud(data);
+};
+
+// 修改现有的 loadExpenseData 函数，优先从云端加载
+const originalLoadExpenseData = window.loadExpenseData;
+window.loadExpenseData = async function() {
+    // 1. 先尝试从云端加载
+    const cloudData = await loadFromCloud();
+    
+    if (cloudData && cloudData.length > 0) {
+        // 清空表格
+        const tbody = document.querySelector('#expense-table tbody');
+        tbody.innerHTML = '';
+        
+        // 加载云端数据
+        cloudData.forEach(d => addRowToTable(d.date, d.type, d.amount, d.notes, d.id));
+        calculateSummary();
+        showNotification('已从云端加载数据');
+    } else {
+        // 2. 如果云端没有数据，从本地加载
+        if (originalLoadExpenseData) originalLoadExpenseData();
+        console.log('使用本地存储数据');
+    }
+};
+
+// 初始化
+document.addEventListener('DOMContentLoaded', async function() {
+    // 延迟初始化，等待页面加载完成
+    setTimeout(async () => {
+        await initSupabase();
+        
+        // 页面加载时自动从云端同步
+        setTimeout(async () => {
+            await loadFromCloud();
+        }, 1000);
+    }, 500);
+});
+</script>
+<!-- ========== 添加 Supabase 代码（结束）========== -->
+
 </head>
+
 <body>
 <div class="container">
     <header>
@@ -283,6 +429,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }));
         localStorage.setItem(getSelectedYearMonth(),JSON.stringify(data));
         calculateSummary();
+
+        // 调用云保存函数
+        if (typeof saveToCloud === 'function') {
+            saveToCloud(data);
+        }
+
     }
 
     function loadExpenseData(){
@@ -317,3 +469,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
+
