@@ -117,53 +117,269 @@ th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; }
 }
 </style>
 
-<!-- ========== 添加 Supabase 代码（开始）========== -->
+<!-- ========== Supabase + 账号登录系统 ========== -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// === 配置部分 ===
-const SUPABASE_URL = 'https://lhmegseratwrdomkuikk.supabase.co';  // 🔄 这里填你的 URL
-const SUPABASE_KEY = 'sb_publishable_vG66XSCR6tYWuQD3-8Ta6Q_MP_cw39B';      // 🔄 这里填你的 KEY
+// === 配置 ===
+const SUPABASE_URL = 'https://lhmegseratwrdomkuikk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIs...'; // 你的 anon key
 
-// 创建客户端
-let supabaseClient = null;
+// 初始化客户端
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 初始化 Supabase
-async function initSupabase() {
-    if (!SUPABASE_URL.includes('你的项目') && !SUPABASE_KEY.includes('eyJhbGci')) {
-        const { createClient } = supabase;
-        supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+// === 登录状态管理 ===
+let currentUser = null;
+
+// 初始化：检查登录状态
+async function initAuth() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        currentUser = session.user;
+        updateUIForLoggedInUser();
+        console.log('用户已登录:', currentUser.email);
+        return true;
+    }
+    return false;
+}
+
+// === UI 更新函数 ===
+function updateUIForLoggedInUser() {
+    const container = document.querySelector('.container');
+    
+    // 添加用户信息栏
+    let userBar = document.getElementById('user-info-bar');
+    if (!userBar) {
+        userBar = document.createElement('div');
+        userBar.id = 'user-info-bar';
+        userBar.style.cssText = `
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        `;
+        container.insertBefore(userBar, container.firstChild);
+    }
+    
+    const email = currentUser.email || '用户';
+    userBar.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="background: white; color: #764ba2; width: 36px; height: 36px; border-radius: 50%; 
+                        display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                ${email.charAt(0).toUpperCase()}
+            </div>
+            <div>
+                <div style="font-weight: bold;">${email}</div>
+                <div style="font-size: 0.85em; opacity: 0.9;">数据已云端同步</div>
+            </div>
+        </div>
+        <button id="logout-btn" style="
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        ">退出登录</button>
+    `;
+    
+    document.getElementById('logout-btn').addEventListener('click', logout);
+}
+
+function updateUIForLoggedOutUser() {
+    const container = document.querySelector('.container');
+    
+    // 移除用户信息栏
+    const userBar = document.getElementById('user-info-bar');
+    if (userBar) userBar.remove();
+    
+    // 添加登录/注册表单
+    let authForm = document.getElementById('auth-form');
+    if (!authForm) {
+        authForm = document.createElement('div');
+        authForm.id = 'auth-form';
+        authForm.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+        `;
+        container.insertBefore(authForm, container.firstChild);
         
-        // 尝试自动登录（匿名用户）
-        try {
-            const { data, error } = await supabaseClient.auth.signInAnonymously();
-            if (error) {
-                console.warn('匿名登录失败，将继续使用本地存储:', error.message);
-            } else {
-                console.log('✅ Supabase 初始化成功，用户ID:', data.user?.id);
-            }
-        } catch (e) {
-            console.warn('Supabase 连接失败，将使用本地存储:', e.message);
-        }
+        authForm.innerHTML = `
+            <h2 style="margin-bottom: 20px; color: #333; display: flex; align-items: center; gap: 10px;">
+                <span style="color: #667eea;">🔐</span> 登录 / 注册
+            </h2>
+            <div style="margin-bottom: 15px;">
+                <input type="email" id="auth-email" placeholder="邮箱地址" style="
+                    width: 100%;
+                    padding: 12px;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 8px;
+                    margin-bottom: 10px;
+                    font-size: 16px;
+                    transition: border 0.3s;
+                ">
+                <input type="password" id="auth-password" placeholder="密码" style="
+                    width: 100%;
+                    padding: 12px;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 8px;
+                    margin-bottom: 15px;
+                    font-size: 16px;
+                    transition: border 0.3s;
+                ">
+                <div style="display: flex; gap: 10px;">
+                    <button id="login-btn" style="
+                        flex: 1;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 12px;
+                        border: none;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        transition: transform 0.2s;
+                    ">登录</button>
+                    <button id="signup-btn" style="
+                        flex: 1;
+                        background: white;
+                        color: #667eea;
+                        padding: 12px;
+                        border: 2px solid #667eea;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">注册</button>
+                </div>
+            </div>
+            <div id="auth-message" style="
+                padding: 10px;
+                border-radius: 6px;
+                margin-top: 10px;
+                display: none;
+            "></div>
+            <div style="text-align: center; margin-top: 15px; font-size: 14px; color: #666;">
+                登录后数据将自动保存到云端，可在任何设备访问
+            </div>
+        `;
+        
+        // 添加事件监听
+        document.getElementById('login-btn').addEventListener('click', login);
+        document.getElementById('signup-btn').addEventListener('click', signup);
+        
+        // 按回车键登录
+        document.getElementById('auth-password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
     }
 }
 
-// 保存数据到云端（同时保持本地存储）
-async function saveToCloud(expensesData) {
-    if (!supabaseClient) return;
+// === 登录/注册功能 ===
+async function login() {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const messageDiv = document.getElementById('auth-message');
+    
+    if (!email || !password) {
+        showAuthMessage('请输入邮箱和密码', 'error');
+        return;
+    }
+    
+    showAuthMessage('登录中...', 'info');
     
     try {
-        // 获取当前用户
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) return;
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
         
-        const key = getSelectedYearMonth();
-        const monthYear = key; // 格式: 2024-01
+        if (error) throw error;
         
-        // 保存到云端
-        const { error } = await supabaseClient
+        currentUser = data.user;
+        showAuthMessage('登录成功！', 'success');
+        setTimeout(() => {
+            updateUIForLoggedInUser();
+            // 加载云端数据
+            loadFromCloud();
+        }, 1000);
+        
+    } catch (error) {
+        showAuthMessage(error.message || '登录失败', 'error');
+    }
+}
+
+async function signup() {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const messageDiv = document.getElementById('auth-message');
+    
+    if (!email || !password) {
+        showAuthMessage('请输入邮箱和密码', 'error');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showAuthMessage('密码至少6位', 'error');
+        return;
+    }
+    
+    showAuthMessage('注册中...', 'info');
+    
+    try {
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                emailRedirectTo: 'https://qumuqulin.github.io/expense-tracker/'
+            }
+        });
+        
+        if (error) throw error;
+        
+        showAuthMessage('注册成功！请检查邮箱验证（如需要）', 'success');
+        currentUser = data.user;
+        
+        setTimeout(() => {
+            updateUIForLoggedInUser();
+        }, 1500);
+        
+    } catch (error) {
+        showAuthMessage(error.message || '注册失败', 'error');
+    }
+}
+
+async function logout() {
+    await supabase.auth.signOut();
+    currentUser = null;
+    updateUIForLoggedOutUser();
+    showNotification('已退出登录');
+    // 清除本地数据（可选）
+    // localStorage.clear();
+}
+
+// === 云同步功能 ===
+async function saveToCloud(expensesData) {
+    if (!currentUser) return;
+    
+    try {
+        const year = document.getElementById('year-select').value;
+        const month = (parseInt(document.getElementById('month-select').value) + 1)
+            .toString().padStart(2, '0');
+        const monthYear = `${year}-${month}`;
+        
+        const { error } = await supabase
             .from('expenses')
             .upsert({
-                user_id: user.id,
+                user_id: currentUser.id,
                 month_year: monthYear,
                 data: expensesData,
                 updated_at: new Date().toISOString()
@@ -172,94 +388,137 @@ async function saveToCloud(expensesData) {
             });
         
         if (error) throw error;
+        
         console.log('✅ 数据已保存到云端');
+        return true;
+        
     } catch (error) {
-        console.warn('云端保存失败:', error.message);
+        console.error('保存到云端失败:', error.message);
+        return false;
     }
 }
 
-// 从云端加载数据
 async function loadFromCloud() {
-    if (!supabaseClient) return null;
+    if (!currentUser) return null;
     
     try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) return null;
+        const year = document.getElementById('year-select').value;
+        const month = (parseInt(document.getElementById('month-select').value) + 1)
+            .toString().padStart(2, '0');
+        const monthYear = `${year}-${month}`;
         
-        const key = getSelectedYearMonth();
-        const monthYear = key;
-        
-        const { data, error } = await supabaseClient
+        const { data, error } = await supabase
             .from('expenses')
             .select('data')
-            .eq('user_id', user.id)
+            .eq('user_id', currentUser.id)
             .eq('month_year', monthYear)
             .single();
         
-        if (error) throw error;
-        return data?.data || null;
+        if (error) {
+            if (error.code === 'PGRST116') return null; // 无数据
+            throw error;
+        }
+        
+        console.log('✅ 从云端加载数据成功');
+        return data.data;
+        
     } catch (error) {
-        console.warn('云端加载失败:', error.message);
+        console.error('从云端加载失败:', error.message);
         return null;
     }
 }
 
-// 修改现有的 saveExpenseData 函数，添加云同步
-const originalSaveExpenseData = window.saveExpenseData;
-window.saveExpenseData = function() {
-    // 调用原始函数保存到本地
-    if (originalSaveExpenseData) originalSaveExpenseData();
+// === 工具函数 ===
+function showAuthMessage(message, type = 'info') {
+    const messageDiv = document.getElementById('auth-message');
+    if (!messageDiv) return;
     
-    // 获取当前数据
-    const rows = document.querySelectorAll('#expense-table tbody tr');
-    const data = Array.from(rows).map(r => ({
-        id: r.dataset.id,
-        date: r.querySelector('.date-input').value,
-        type: r.querySelector('.type-select').value,
-        amount: parseFloat(r.querySelector('.amount-input').value) || 0,
-        notes: r.querySelector('.notes-input').value
-    }));
-    
-    // 保存到云端
-    saveToCloud(data);
-};
+    messageDiv.textContent = message;
+    messageDiv.style.display = 'block';
+    messageDiv.style.background = 
+        type === 'error' ? '#fee' : 
+        type === 'success' ? '#efc' : '#eef';
+    messageDiv.style.color = 
+        type === 'error' ? '#c33' : 
+        type === 'success' ? '#363' : '#336';
+    messageDiv.style.border = `1px solid ${
+        type === 'error' ? '#fcc' : 
+        type === 'success' ? '#cfc' : '#ccf'
+    }`;
+}
 
-// 修改现有的 loadExpenseData 函数，优先从云端加载
-const originalLoadExpenseData = window.loadExpenseData;
-window.loadExpenseData = async function() {
-    // 1. 先尝试从云端加载
-    const cloudData = await loadFromCloud();
-    
-    if (cloudData && cloudData.length > 0) {
-        // 清空表格
-        const tbody = document.querySelector('#expense-table tbody');
-        tbody.innerHTML = '';
-        
-        // 加载云端数据
-        cloudData.forEach(d => addRowToTable(d.date, d.type, d.amount, d.notes, d.id));
-        calculateSummary();
-        showNotification('已从云端加载数据');
-    } else {
-        // 2. 如果云端没有数据，从本地加载
-        if (originalLoadExpenseData) originalLoadExpenseData();
-        console.log('使用本地存储数据');
-    }
-};
-
-// 初始化
+// === 初始化 ===
 document.addEventListener('DOMContentLoaded', async function() {
-    // 延迟初始化，等待页面加载完成
+    // 等待页面加载
     setTimeout(async () => {
-        await initSupabase();
+        const isLoggedIn = await initAuth();
         
-        // 页面加载时自动从云端同步
-        setTimeout(async () => {
-            await loadFromCloud();
-        }, 1000);
+        if (!isLoggedIn) {
+            updateUIForLoggedOutUser();
+            console.log('用户未登录，显示登录界面');
+        } else {
+            // 已登录，加载云端数据
+            const cloudData = await loadFromCloud();
+            if (cloudData) {
+                // 与本地数据合并或替换（根据你的需求）
+                const localKey = getSelectedYearMonth();
+                const localData = JSON.parse(localStorage.getItem(localKey) || '[]');
+                
+                if (localData.length === 0 || confirm('检测到云端数据，是否覆盖本地数据？')) {
+                    const tbody = document.querySelector('#expense-table tbody');
+                    if (tbody) {
+                        tbody.innerHTML = '';
+                        cloudData.forEach(d => {
+                            addRowToTable(d.date, d.type, d.amount, d.notes, d.id);
+                        });
+                        calculateSummary();
+                        showNotification('已从云端恢复数据');
+                    }
+                }
+            }
+        }
+        
+        // 修改保存函数，添加云端同步
+        const originalSaveExpenseData = window.saveExpenseData;
+        if (originalSaveExpenseData) {
+            window.saveExpenseData = function() {
+                // 保存到本地
+                originalSaveExpenseData.call(this);
+                
+                // 如果已登录，保存到云端
+                if (currentUser) {
+                    const rows = document.querySelectorAll('#expense-table tbody tr');
+                    const data = Array.from(rows).map(r => ({
+                        id: r.dataset.id,
+                        date: r.querySelector('.date-input').value,
+                        type: r.querySelector('.type-select').value,
+                        amount: parseFloat(r.querySelector('.amount-input').value) || 0,
+                        notes: r.querySelector('.notes-input').value
+                    }));
+                    
+                    if (data.length > 0) {
+                        saveToCloud(data);
+                    }
+                }
+            };
+        }
     }, 500);
+    
+    // 监听认证状态变化
+    supabase.auth.onAuthStateChange((event, session) => {
+        console.log('认证状态变化:', event);
+        if (event === 'SIGNED_IN' && session) {
+            currentUser = session.user;
+            updateUIForLoggedInUser();
+            loadFromCloud();
+        } else if (event === 'SIGNED_OUT') {
+            currentUser = null;
+            updateUIForLoggedOutUser();
+        }
+    });
 });
 </script>
-<!-- ========== 添加 Supabase 代码（结束）========== -->
+<!-- ========== 账号登录系统结束 ========== -->
 
 </head>
 
@@ -469,5 +728,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
-
 
