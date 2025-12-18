@@ -2,41 +2,125 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>月度花销记账表 - 云端版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 <style>
-* { box-sizing: border-box; }
-body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont;
-    background: #f5f6fa;
+/* ===== 重置与基础样式 ===== */
+* { 
+    box-sizing: border-box;
     margin: 0;
-    padding: 16px;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --danger-color: #e74c3c;
+    --warning-color: #f39c12;
+    --light-bg: #f8f9fa;
+    --card-bg: #ffffff;
+    --text-color: #333333;
+    --border-color: #e0e0e0;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: var(--text-color);
+    line-height: 1.5;
+    padding: 12px;
+    min-height: 100vh;
+    padding-bottom: calc(20px + var(--safe-area-inset-bottom));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== 容器布局 ===== */
 .container {
-    max-width: 1200px;
-    margin: auto;
-    background: #fff;
-    border-radius: 12px;
+    max-width: 800px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border-radius: var(--radius);
     padding: 16px;
-    box-shadow: 0 5px 15px rgba(0,0,0,.08);
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
 }
 
-h1 {
-    text-align: center;
-    margin-bottom: 16px;
+/* 移动端底部固定操作栏 */
+.mobile-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    padding: 12px 16px;
+    padding-bottom: calc(12px + var(--safe-area-inset-bottom));
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    box-shadow: 0 -2px 20px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: none;
 }
 
-/* ===== 配置区 ===== */
+.mobile-bottom-bar button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-size: 12px;
+    padding: 8px;
+    flex: 1;
+}
+
+.mobile-bottom-bar button i {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+/* ===== 标题与导航 ===== */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ===== 配置面板 ===== */
 .config-panel {
-    background: #f8f9fa;
+    background: var(--light-bg);
+    border-radius: var(--radius-sm);
     padding: 16px;
-    border-radius: 8px;
     margin-bottom: 16px;
-    border-left: 4px solid #3498db;
+    border-left: 4px solid var(--primary-color);
 }
 
 .config-panel.hidden {
@@ -44,77 +128,147 @@ h1 {
 }
 
 .config-input {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
     width: 100%;
-    margin-bottom: 8px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 12px;
+    background: white;
 }
 
-.config-btn {
-    background: #3498db;
-    color: white;
+.config-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+/* ===== 按钮样式 ===== */
+.btn {
+    padding: 12px 20px;
     border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
-    margin-right: 8px;
-    margin-bottom: 8px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px; /* 移动端最小触摸区域 */
+    touch-action: manipulation;
 }
 
-.config-btn:hover {
-    opacity: .9;
+.btn:hover, .btn:active {
+    transform: translateY(-1px);
+    opacity: 0.95;
 }
 
-.config-btn.success {
-    background: #2ecc71;
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
 }
 
-.config-btn.warning {
-    background: #f39c12;
+.btn-success {
+    background: var(--secondary-color);
+    color: white;
 }
 
-/* ===== 控制区 ===== */
-.controls {
+.btn-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+.btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-small {
+    padding: 8px 12px;
+    font-size: 13px;
+    min-height: 36px;
+}
+
+.btn-full {
+    width: 100%;
+}
+
+.btn-icon {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ===== 年月选择器 ===== */
+.date-selector {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
     margin-bottom: 16px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
-.controls select,
-.controls button {
-    padding: 8px 12px;
-    border-radius: 6px;
-    border: 1px solid #ddd;
-    background: #fff;
+.date-selector select {
+    flex: 1;
+    min-width: 120px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: white;
+    font-size: 14px;
+    height: 44px;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
 }
 
-.controls button {
-    cursor: pointer;
-    background: #3498db;
-    color: #fff;
-    border: none;
+/* ===== 快速操作栏 ===== */
+.quick-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
 }
 
-.controls button:hover {
-    opacity: .9;
-}
-
-.controls button.green {
-    background: #2ecc71;
-}
-
-.controls button.red {
-    background: #e74c3c;
+.quick-action-btn {
+    flex: 1;
+    min-width: calc(50% - 8px);
+    text-align: center;
 }
 
 /* ===== 状态提示 ===== */
 .status {
-    padding: 10px;
-    border-radius: 4px;
-    margin: 10px 0;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    margin: 12px 0;
+    animation: slideIn 0.3s ease;
     display: none;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .status.success {
@@ -139,171 +293,531 @@ h1 {
 }
 
 /* ===== 自定义类型 ===== */
-.custom-type {
-    margin-bottom: 16px;
-    padding: 12px;
-    background: #f8f9fa;
-    border-radius: 8px;
+.custom-type-panel {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--light-bg);
+    border-radius: var(--radius-sm);
 }
 
-.custom-type input {
-    padding: 8px;
-    width: 160px;
-    margin-right: 8px;
-}
-
-#type-list {
-    margin-top: 8px;
+.type-input-group {
     display: flex;
-    gap: 6px;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.type-input-group input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.type-tags {
+    display: flex;
     flex-wrap: wrap;
+    gap: 6px;
 }
 
 .type-tag {
-    background: #3498db;
-    color: #fff;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    cursor: pointer;
-    display: inline-block;
-    margin-bottom: 4px;
+    background: var(--primary-color);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
-/* ===== 表格 ===== */
-.table-wrap {
+.type-tag .remove {
+    cursor: pointer;
+    opacity: 0.8;
+    font-size: 12px;
+}
+
+.type-tag .remove:hover {
+    opacity: 1;
+}
+
+/* ===== 表格样式 ===== */
+.table-container {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 16px 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: white;
 }
 
 table {
-    border-collapse: collapse;
     width: 100%;
-    min-width: 650px;
+    min-width: 600px;
+    border-collapse: collapse;
 }
 
-th, td {
-    padding: 8px;
-    border-bottom: 1px solid #ddd;
+thead {
+    background: var(--light-bg);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 th {
-    background: #f8f9fa;
+    padding: 16px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    color: #666;
+    border-bottom: 2px solid var(--border-color);
+    white-space: nowrap;
 }
 
-input, select {
+td {
+    padding: 16px 12px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover {
+    background: rgba(52, 152, 219, 0.05);
+}
+
+/* 表格输入控件 */
+table input, table select {
     width: 100%;
-    padding: 4px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
 }
 
-.delete {
-    background: #e74c3c;
-    color: #fff;
-    border: none;
-    padding: 6px 8px;
-    border-radius: 4px;
-    cursor: pointer;
+table input:focus, table select:focus {
+    outline: none;
+    border-color: var(--primary-color);
 }
 
-/* ===== 统计 ===== */
-.summary {
-    margin-top: 16px;
-    background: #f8f9fa;
+/* 表格操作按钮 */
+.table-actions {
+    display: flex;
+    gap: 6px;
+}
+
+/* ===== 移动端卡片视图 ===== */
+.mobile-cards {
+    display: none;
+}
+
+.mobile-card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.card-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.card-label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+}
+
+.card-value {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.card-amount {
+    color: var(--secondary-color);
+    font-weight: 600;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+/* ===== 统计面板 ===== */
+.summary-panel {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.summary-total {
+    font-size: 32px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.summary-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    font-size: 14px;
+}
+
+.summary-item {
+    background: rgba(255,255,255,0.1);
     padding: 12px;
     border-radius: 8px;
+    text-align: center;
+    backdrop-filter: blur(10px);
 }
 
-.summary strong {
+.summary-category {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 4px;
+}
+
+.summary-amount {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+/* ===== 模态框 ===== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1001;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal.active {
+    display: flex;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background: white;
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-header h3 {
     font-size: 18px;
+    font-weight: 600;
 }
 
-/* ===== 手机适配 ===== */
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #666;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.modal-close:hover {
+    background: var(--light-bg);
+}
+
+/* ===== 响应式设计 ===== */
 @media (max-width: 768px) {
-    .controls, .config-buttons {
+    body {
+        padding: 8px;
+        padding-bottom: calc(80px + var(--safe-area-inset-bottom));
+    }
+    
+    .container {
+        padding: 12px;
+        border-radius: 16px;
+    }
+    
+    .header h1 {
+        font-size: 18px;
+    }
+    
+    /* 显示移动端底部栏 */
+    .mobile-bottom-bar {
+        display: flex;
+    }
+    
+    /* 隐藏桌面表格，显示移动卡片 */
+    .table-container {
+        display: none;
+    }
+    
+    .mobile-cards {
+        display: block;
+    }
+    
+    /* 快速操作按钮调整为垂直 */
+    .quick-actions {
         flex-direction: column;
     }
-
-    .controls select,
-    .controls button,
-    .config-btn {
+    
+    .quick-action-btn {
+        min-width: 100%;
+    }
+    
+    /* 年月选择器调整 */
+    .date-selector {
+        flex-direction: column;
+    }
+    
+    .date-selector select {
+        width: 100%;
+    }
+    
+    /* 统计详情网格调整 */
+    .summary-details {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    /* 按钮调整为全宽 */
+    .btn:not(.btn-icon) {
         width: 100%;
         margin-bottom: 8px;
     }
     
-    .config-btn {
-        margin-right: 0;
+    /* 模态框调整 */
+    .modal {
+        padding: 12px;
     }
+    
+    .modal-content {
+        padding: 20px;
+        max-height: 85vh;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .header h1 {
+        font-size: 16px;
+    }
+    
+    .btn {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .summary-total {
+        font-size: 24px;
+    }
+    
+    .summary-details {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 平板适配 */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .container {
+        max-width: 95%;
+    }
+    
+    .summary-details {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* 暗色模式支持 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-color: #4dabf7;
+        --secondary-color: #40c057;
+        --danger-color: #ff6b6b;
+        --warning-color: #ffa94d;
+        --light-bg: #2d333b;
+        --card-bg: #22272e;
+        --text-color: #adbac7;
+        --border-color: #444c56;
+    }
+    
+    body {
+        background: linear-gradient(135deg, #232136 0%, #2a2342 100%);
+    }
+    
+    .config-input, table input, table select, .date-selector select {
+        background: #1c2128;
+        color: var(--text-color);
+        border-color: var(--border-color);
+    }
+    
+    .summary-panel {
+        background: linear-gradient(135deg, #5c6bc0 0%, #3949ab 100%);
+    }
+}
+
+/* 打印样式 */
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+    
+    .container {
+        box-shadow: none;
+        max-width: 100%;
+    }
+    
+    .config-panel, .mobile-bottom-bar, .quick-actions, .custom-type-panel, .modal {
+        display: none !important;
+    }
+}
+
+/* 加载动画 */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 </style>
 </head>
 
 <body>
 <div class="container">
-    <h1>📊 月度花销记账表 - 云端版</h1>
-    
+    <!-- 头部 -->
+    <div class="header">
+        <h1><i class="fas fa-money-bill-wave"></i> 月度花销记账表</h1>
+        <div class="header-actions">
+            <button class="btn btn-primary btn-icon" onclick="showConfig()" title="配置">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button class="btn btn-success btn-icon" onclick="exportToExcel()" title="导出">
+                <i class="fas fa-file-export"></i>
+            </button>
+        </div>
+    </div>
+
     <!-- 配置面板 -->
     <div class="config-panel" id="configPanel">
-        <h3>🔧 Supabase 配置</h3>
-        <p>首次使用请配置云端存储（配置会自动保存）</p>
+        <div class="modal-header">
+            <h3><i class="fas fa-cloud"></i> 云端配置</h3>
+            <button class="modal-close" onclick="hideConfig()">×</button>
+        </div>
         <input type="text" id="supabaseUrl" class="config-input" 
                placeholder="Supabase URL (如：https://xxx.supabase.co)">
         <input type="text" id="supabaseKey" class="config-input" 
                placeholder="Supabase Anon Key">
         <input type="text" id="tableName" class="config-input" 
                placeholder="表名（默认：expenses）" value="expenses">
-        <div class="config-buttons">
-            <button class="config-btn success" onclick="saveConfig()">💾 保存配置</button>
-            <button class="config-btn" onclick="testConnection()">🔗 测试连接</button>
-            <button class="config-btn warning" onclick="createTable()">🛠️ 创建表</button>
-            <button class="config-btn" onclick="hideConfig()">隐藏配置</button>
-        </div>
-        <div id="sqlHelp" style="margin-top: 10px; display: none;">
-            <h4>📋 SQL创建表语句：</h4>
-            <pre style="background: #eee; padding: 10px; border-radius: 4px; overflow: auto;">
-CREATE TABLE expenses (
-  id BIGSERIAL PRIMARY KEY,
-  year INTEGER NOT NULL,
-  month INTEGER NOT NULL,
-  expense_date DATE NOT NULL,
-  category VARCHAR(50) NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
-  note TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 启用RLS并设置策略
-ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "允许所有人操作expenses表" ON expenses
-  FOR ALL USING (true);
-            </pre>
+        <div class="quick-actions">
+            <button class="btn btn-success btn-full" onclick="saveConfig()">
+                <i class="fas fa-save"></i> 保存配置
+            </button>
+            <button class="btn btn-primary btn-full" onclick="testConnection()">
+                <i class="fas fa-plug"></i> 测试连接
+            </button>
+            <button class="btn btn-warning btn-full" onclick="createTable()">
+                <i class="fas fa-database"></i> 创建表
+            </button>
         </div>
     </div>
-    
+
     <!-- 状态提示 -->
     <div id="status" class="status"></div>
-    
-    <!-- 控制区 -->
-    <div class="controls" id="mainControls" style="display:none;">
+
+    <!-- 年月选择 -->
+    <div class="date-selector">
         <select id="year"></select>
         <select id="month"></select>
-        <button id="addRow" class="green">＋ 添加记录</button>
-        <button id="export">📤 导出 Excel</button>
-        <button onclick="syncData()" class="green">🔄 同步云端</button>
-        <button onclick="loadCloudData()" class="green">📥 加载云端</button>
-        <button onclick="showConfig()" class="config-btn">⚙️ 配置</button>
+        <button class="btn btn-primary" onclick="loadCurrentMonth()">
+            <i class="fas fa-sync-alt"></i> 刷新
+        </button>
     </div>
 
-    <!-- 自定义类型 -->
-    <div class="custom-type">
-        <input id="newType" placeholder="新增类型" />
-        <button onclick="addCustomType()" class="config-btn">添加类型</button>
-        <div id="type-list"></div>
+    <!-- 快速操作 -->
+    <div class="quick-actions">
+        <button class="btn btn-success quick-action-btn" onclick="showAddModal()">
+            <i class="fas fa-plus"></i> 添加记录
+        </button>
+        <button class="btn btn-primary quick-action-btn" onclick="syncData()">
+            <i class="fas fa-cloud-upload-alt"></i> 同步云端
+        </button>
+        <button class="btn btn-primary quick-action-btn" onclick="loadCloudData()">
+            <i class="fas fa-cloud-download-alt"></i> 加载云端
+        </button>
+        <button class="btn btn-outline quick-action-btn" onclick="showTypeModal()">
+            <i class="fas fa-tags"></i> 管理类型
+        </button>
     </div>
 
-    <!-- 表格 -->
-    <div class="table-wrap">
+    <!-- 自定义类型面板 -->
+    <div class="custom-type-panel">
+        <div class="type-input-group">
+            <input id="newType" placeholder="输入新类型" />
+            <button class="btn btn-primary" onclick="addCustomType()">
+                <i class="fas fa-plus"></i> 添加
+            </button>
+        </div>
+        <div id="type-list" class="type-tags"></div>
+    </div>
+
+    <!-- 桌面表格 -->
+    <div class="table-container">
         <table>
             <thead>
                 <tr>
@@ -318,10 +832,103 @@ CREATE POLICY "允许所有人操作expenses表" ON expenses
         </table>
     </div>
 
-    <!-- 统计 -->
-    <div class="summary">
-        <strong>总计：¥ <span id="total">0</span></strong>
-        <div id="detail"></div>
+    <!-- 移动端卡片视图 -->
+    <div id="mobileCards" class="mobile-cards"></div>
+
+    <!-- 统计面板 -->
+    <div class="summary-panel">
+        <div class="summary-total">
+            ¥ <span id="total">0</span>
+        </div>
+        <div id="detail" class="summary-details"></div>
+    </div>
+</div>
+
+<!-- 移动端底部操作栏 -->
+<div class="mobile-bottom-bar">
+    <button onclick="showAddModal()">
+        <i class="fas fa-plus-circle"></i>
+        <span>添加</span>
+    </button>
+    <button onclick="syncData()">
+        <i class="fas fa-cloud-upload-alt"></i>
+        <span>同步</span>
+    </button>
+    <button onclick="loadCloudData()">
+        <i class="fas fa-cloud-download-alt"></i>
+        <span>加载</span>
+    </button>
+    <button onclick="showTypeModal()">
+        <i class="fas fa-tags"></i>
+        <span>类型</span>
+    </button>
+    <button onclick="showConfig()">
+        <i class="fas fa-cog"></i>
+        <span>设置</span>
+    </button>
+</div>
+
+<!-- 添加记录模态框 -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus"></i> 添加记录</h3>
+            <button class="modal-close" onclick="hideAddModal()">×</button>
+        </div>
+        <form id="addForm" onsubmit="return false;">
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 14px;">日期</label>
+                <input type="date" id="modalDate" class="config-input" required>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 14px;">类型</label>
+                <select id="modalCategory" class="config-input" required>
+                    <!-- 动态生成 -->
+                </select>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 14px;">金额</label>
+                <input type="number" step="0.01" id="modalAmount" class="config-input" 
+                       placeholder="0.00" required>
+            </div>
+            <div style="margin-bottom: 24px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 14px;">备注</label>
+                <textarea id="modalNote" class="config-input" 
+                          placeholder="备注信息" rows="3"></textarea>
+            </div>
+            <div class="quick-actions">
+                <button type="submit" class="btn btn-success btn-full" onclick="saveModalRecord()">
+                    <i class="fas fa-check"></i> 保存
+                </button>
+                <button type="button" class="btn btn-outline btn-full" onclick="hideAddModal()">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 类型管理模态框 -->
+<div id="typeModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-tags"></i> 管理类型</h3>
+            <button class="modal-close" onclick="hideTypeModal()">×</button>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <div class="type-input-group">
+                <input id="modalNewType" placeholder="输入新类型" />
+                <button class="btn btn-primary" onclick="addModalType()">
+                    <i class="fas fa-plus"></i> 添加
+                </button>
+            </div>
+        </div>
+        <div id="modalTypeList" class="type-tags"></div>
+        <div style="margin-top: 24px;">
+            <button class="btn btn-outline btn-full" onclick="hideTypeModal()">
+                <i class="fas fa-times"></i> 关闭
+            </button>
+        </div>
     </div>
 </div>
 
@@ -329,13 +936,14 @@ CREATE POLICY "允许所有人操作expenses表" ON expenses
 /* ========= 全局变量 ========= */
 const baseTypes = ["食物", "出行", "水电", "房租", "购物", "娱乐", "医疗", "其他"];
 let customTypes = JSON.parse(localStorage.getItem("customTypes") || "[]");
-let localExpenses = {}; // 本地缓存：{ "2024-1": [ {date, category, amount, note} ] }
+let localExpenses = {};
 let supabaseClient = null;
 let currentConfig = null;
 
 const yearEl = document.getElementById("year");
 const monthEl = document.getElementById("month");
 const tbody = document.getElementById("tbody");
+const mobileCards = document.getElementById("mobileCards");
 
 /* ========= 初始化 ========= */
 function init() {
@@ -343,13 +951,23 @@ function init() {
     const now = new Date();
     const currentYear = now.getFullYear();
     
+    // 填充年份选择
     for (let y = currentYear - 5; y <= currentYear + 1; y++) {
-        yearEl.add(new Option(y, y));
+        const option = document.createElement("option");
+        option.value = y;
+        option.textContent = y + "年";
+        yearEl.appendChild(option);
     }
     yearEl.value = currentYear;
 
-    ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"].forEach((m,i)=>{
-        monthEl.add(new Option(m, i));
+    // 填充月份选择
+    const months = ["1月", "2月", "3月", "4月", "5月", "6月", 
+                   "7月", "8月", "9月", "10月", "11月", "12月"];
+    months.forEach((month, index) => {
+        const option = document.createElement("option");
+        option.value = index;
+        option.textContent = month;
+        monthEl.appendChild(option);
     });
     monthEl.value = now.getMonth();
     
@@ -359,6 +977,20 @@ function init() {
     
     // 初始化本地数据
     loadLocalData();
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', checkMobileView);
+    checkMobileView();
+    
+    // 初始化模态框类别选项
+    updateModalCategoryOptions();
+}
+
+/* ========= 响应式检查 ========= */
+function checkMobileView() {
+    const isMobile = window.innerWidth <= 768;
+    document.querySelector('.table-container').style.display = isMobile ? 'none' : 'block';
+    mobileCards.style.display = isMobile ? 'block' : 'none';
 }
 
 /* ========= 配置管理 ========= */
@@ -391,6 +1023,7 @@ function saveConfig() {
     showStatus('配置已保存！', 'success');
     
     initSupabase();
+    hideConfig();
 }
 
 function initSupabase() {
@@ -400,9 +1033,7 @@ function initSupabase() {
             currentConfig.key
         );
         
-        document.getElementById('configPanel').classList.add('hidden');
-        document.getElementById('mainControls').style.display = 'flex';
-        showStatus('云端连接成功！正在加载数据...', 'success');
+        showStatus('云端连接成功！', 'success');
         
         // 测试表是否存在
         checkTableExists();
@@ -413,7 +1044,6 @@ function initSupabase() {
 
 function showConfig() {
     document.getElementById('configPanel').classList.remove('hidden');
-    document.getElementById('sqlHelp').style.display = 'block';
 }
 
 function hideConfig() {
@@ -441,8 +1071,7 @@ async function testConnection() {
 
         if (error) {
             if (error.message.includes('does not exist')) {
-                showStatus(`表 "${tableName}" 不存在，请点击"创建表"按钮`, 'error');
-                document.getElementById('sqlHelp').style.display = 'block';
+                showStatus(`表 "${tableName}" 不存在，请先创建表`, 'error');
             } else {
                 showStatus('连接失败：' + error.message, 'error');
             }
@@ -466,8 +1095,8 @@ async function checkTableExists() {
             
         if (error && error.message.includes('does not exist')) {
             showStatus('表不存在，请先创建表', 'error');
-            document.getElementById('sqlHelp').style.display = 'block';
         } else {
+            // 表存在，加载数据
             loadCloudData();
         }
     } catch (err) {
@@ -488,41 +1117,19 @@ CREATE TABLE IF NOT EXISTS expenses (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 启用RLS
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 
--- 创建策略（允许所有人读写）
 CREATE POLICY "允许所有人操作expenses表" ON expenses
   FOR ALL USING (true);
     `;
     
-    showStatus('请在Supabase控制台的SQL编辑器中执行以下语句：', 'info');
-    alert('请登录Supabase控制台，进入SQL编辑器，粘贴并执行以下SQL语句：\n\n' + sql);
-    
-    // 也可以尝试通过API创建（但通常需要service_role权限）
+    // 复制到剪贴板
     try {
-        const testClient = window.supabase.createClient(
-            document.getElementById('supabaseUrl').value.trim(),
-            document.getElementById('supabaseKey').value.trim()
-        );
-        
-        // 尝试插入测试数据来隐式创建表（如果表不存在会失败）
-        const { error } = await testClient
-            .from('expenses')
-            .insert({
-                year: 2024,
-                month: 1,
-                expense_date: new Date().toISOString().split('T')[0],
-                category: '测试',
-                amount: 0.01,
-                note: '测试数据'
-            });
-            
-        if (!error || error.message.includes('duplicate key')) {
-            showStatus('表可能已存在，请测试连接', 'success');
-        }
+        await navigator.clipboard.writeText(sql);
+        showStatus('SQL语句已复制到剪贴板，请到Supabase控制台执行', 'success');
+        alert('SQL语句已复制！\n请登录Supabase控制台，进入SQL编辑器，粘贴并执行SQL语句创建表。');
     } catch (err) {
-        showStatus('请手动在Supabase中创建表', 'info');
+        prompt('请复制以下SQL语句到Supabase控制台执行：', sql);
     }
 }
 
@@ -532,28 +1139,24 @@ function showStatus(message, type = 'info') {
     statusDiv.innerHTML = message;
     statusDiv.className = 'status ' + type;
     
-    // 5秒后自动隐藏
-    if (type !== 'error') {
-        setTimeout(() => {
-            statusDiv.className = 'status';
-        }, 5000);
-    }
+    setTimeout(() => {
+        statusDiv.className = 'status';
+    }, 5000);
 }
 
 /* ========= 类型管理 ========= */
 function renderTypes() {
     const list = document.getElementById("type-list");
     list.innerHTML = "";
-    customTypes.forEach(t => {
+    
+    const allTypes = [...baseTypes, ...customTypes];
+    allTypes.forEach(t => {
         const tag = document.createElement("div");
         tag.className = "type-tag";
-        tag.textContent = t + " ×";
-        tag.onclick = () => {
-            customTypes = customTypes.filter(x => x !== t);
-            localStorage.setItem("customTypes", JSON.stringify(customTypes));
-            renderTypes();
-            loadCurrentMonth();
-        };
+        tag.innerHTML = `
+            ${t}
+            ${customTypes.includes(t) ? '<span class="remove" onclick="removeCustomType(\'' + t + '\')">×</span>' : ''}
+        `;
         list.appendChild(tag);
     });
 }
@@ -569,8 +1172,93 @@ function addCustomType() {
     localStorage.setItem("customTypes", JSON.stringify(customTypes));
     newTypeInput.value = "";
     renderTypes();
-    loadCurrentMonth();
+    updateModalCategoryOptions();
     showStatus('类型添加成功', 'success');
+}
+
+function removeCustomType(type) {
+    customTypes = customTypes.filter(x => x !== type);
+    localStorage.setItem("customTypes", JSON.stringify(customTypes));
+    renderTypes();
+    updateModalCategoryOptions();
+    loadCurrentMonth();
+    showStatus('类型已删除', 'info');
+}
+
+/* ========= 模态框管理 ========= */
+function showAddModal() {
+    document.getElementById('addModal').classList.add('active');
+    document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('modalAmount').value = '';
+    document.getElementById('modalNote').value = '';
+}
+
+function hideAddModal() {
+    document.getElementById('addModal').classList.remove('active');
+}
+
+function showTypeModal() {
+    renderModalTypes();
+    document.getElementById('typeModal').classList.add('active');
+}
+
+function hideTypeModal() {
+    document.getElementById('typeModal').classList.remove('active');
+}
+
+function renderModalTypes() {
+    const list = document.getElementById("modalTypeList");
+    list.innerHTML = "";
+    
+    const allTypes = [...baseTypes, ...customTypes];
+    allTypes.forEach(t => {
+        const tag = document.createElement("div");
+        tag.className = "type-tag";
+        tag.innerHTML = `
+            ${t}
+            ${customTypes.includes(t) ? '<span class="remove" onclick="removeModalType(\'' + t + '\')">×</span>' : ''}
+        `;
+        list.appendChild(tag);
+    });
+}
+
+function addModalType() {
+    const input = document.getElementById("modalNewType");
+    const v = input.value.trim();
+    if (!v || baseTypes.includes(v) || customTypes.includes(v)) {
+        showStatus('类型已存在或为空', 'error');
+        return;
+    }
+    customTypes.push(v);
+    localStorage.setItem("customTypes", JSON.stringify(customTypes));
+    input.value = "";
+    renderTypes();
+    renderModalTypes();
+    updateModalCategoryOptions();
+    showStatus('类型添加成功', 'success');
+}
+
+function removeModalType(type) {
+    customTypes = customTypes.filter(x => x !== type);
+    localStorage.setItem("customTypes", JSON.stringify(customTypes));
+    renderTypes();
+    renderModalTypes();
+    updateModalCategoryOptions();
+    loadCurrentMonth();
+    showStatus('类型已删除', 'info');
+}
+
+function updateModalCategoryOptions() {
+    const select = document.getElementById("modalCategory");
+    select.innerHTML = "";
+    
+    const allTypes = [...baseTypes, ...customTypes];
+    allTypes.forEach(t => {
+        const option = document.createElement("option");
+        option.value = t;
+        option.textContent = t;
+        select.appendChild(option);
+    });
 }
 
 /* ========= 数据管理 ========= */
@@ -578,66 +1266,37 @@ function getCurrentKey() {
     return `${yearEl.value}-${monthEl.value}`;
 }
 
-// 添加行
-function addRow(data = {}) {
-    const tr = document.createElement("tr");
-
-    const typeOptions = [...baseTypes, ...customTypes]
-        .map(t => `<option ${t===data.category?'selected':''}>${t}</option>`).join("");
-
-    tr.innerHTML = `
-        <td><input type="date" class="date-input" value="${data.expense_date || new Date().toISOString().slice(0,10)}"></td>
-        <td><select class="category-select">${typeOptions}</select></td>
-        <td><input type="number" step="0.01" class="amount-input" value="${data.amount||''}" placeholder="0.00"></td>
-        <td><input class="note-input" value="${data.note||''}" placeholder="备注"></td>
-        <td><button class="delete">删除</button></td>
-    `;
-
-    tr.querySelector(".delete").onclick = async () => {
-        // 如果数据已同步到云端，尝试删除云端记录
-        if (data.id && supabaseClient) {
-            try {
-                await supabaseClient
-                    .from(currentConfig.tableName)
-                    .delete()
-                    .eq('id', data.id);
-                showStatus('云端记录已删除', 'success');
-            } catch (err) {
-                console.error('删除云端记录失败:', err);
-            }
-        }
-        
-        tr.remove();
-        saveLocalData();
-    };
-
-    tr.querySelectorAll("input,select").forEach(el => el.oninput = () => {
-        saveLocalData();
-    });
+function saveModalRecord() {
+    const date = document.getElementById('modalDate').value;
+    const category = document.getElementById('modalCategory').value;
+    const amount = parseFloat(document.getElementById('modalAmount').value) || 0;
+    const note = document.getElementById('modalNote').value;
     
-    tbody.appendChild(tr);
-}
-
-// 保存本地数据
-function saveLocalData() {
-    const rows = [...tbody.children].map(tr => {
-        const inputs = tr.querySelectorAll("input,select");
-        return {
-            id: tr.dataset.id || null,
-            expense_date: inputs[0].value,
-            category: inputs[1].value,
-            amount: parseFloat(inputs[2].value) || 0,
-            note: inputs[3].value
-        };
-    });
+    if (!date || !category || amount <= 0) {
+        showStatus('请填写完整的记录信息', 'error');
+        return;
+    }
+    
+    const rowData = {
+        expense_date: date,
+        category: category,
+        amount: amount,
+        note: note
+    };
     
     const key = getCurrentKey();
-    localExpenses[key] = rows;
+    if (!localExpenses[key]) {
+        localExpenses[key] = [];
+    }
+    
+    localExpenses[key].push(rowData);
     localStorage.setItem('localExpenses', JSON.stringify(localExpenses));
-    calc();
+    
+    hideAddModal();
+    loadCurrentMonth();
+    showStatus('记录添加成功', 'success');
 }
 
-// 加载本地数据
 function loadLocalData() {
     const saved = localStorage.getItem('localExpenses');
     if (saved) {
@@ -646,18 +1305,120 @@ function loadLocalData() {
     loadCurrentMonth();
 }
 
-// 加载当前月份数据
 function loadCurrentMonth() {
-    tbody.innerHTML = "";
     const key = getCurrentKey();
     const rows = localExpenses[key] || [];
-    rows.forEach(row => {
-        const tr = addRow(row);
-        if (row.id) {
-            tr.dataset.id = row.id;
-        }
+    
+    // 更新桌面表格
+    updateDesktopTable(rows);
+    
+    // 更新移动端卡片
+    updateMobileCards(rows);
+    
+    // 更新统计
+    calc(rows);
+}
+
+function updateDesktopTable(rows) {
+    tbody.innerHTML = "";
+    
+    rows.forEach((row, index) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td><input type="date" value="${row.expense_date}" onchange="updateRow(${index}, this.value, 'date')"></td>
+            <td>
+                <select onchange="updateRow(${index}, this.value, 'category')">
+                    ${[...baseTypes, ...customTypes].map(t => 
+                        `<option value="${t}" ${t === row.category ? 'selected' : ''}>${t}</option>`
+                    ).join('')}
+                </select>
+            </td>
+            <td><input type="number" step="0.01" value="${row.amount}" 
+                       onchange="updateRow(${index}, this.value, 'amount')"></td>
+            <td><input value="${row.note || ''}" 
+                       onchange="updateRow(${index}, this.value, 'note')" 
+                       placeholder="备注"></td>
+            <td>
+                <button class="btn btn-danger btn-small" onclick="deleteRow(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
     });
-    calc();
+}
+
+function updateMobileCards(rows) {
+    mobileCards.innerHTML = "";
+    
+    if (rows.length === 0) {
+        mobileCards.innerHTML = `
+            <div class="mobile-card" style="text-align: center; color: #666;">
+                <i class="fas fa-receipt" style="font-size: 48px; margin: 20px; opacity: 0.3;"></i>
+                <p>暂无记录</p>
+                <button class="btn btn-success" onclick="showAddModal()" style="margin-top: 16px;">
+                    <i class="fas fa-plus"></i> 添加第一条记录
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    rows.forEach((row, index) => {
+        const card = document.createElement("div");
+        card.className = "mobile-card";
+        card.innerHTML = `
+            <div class="card-row">
+                <span class="card-label">日期</span>
+                <span class="card-value">${row.expense_date}</span>
+            </div>
+            <div class="card-row">
+                <span class="card-label">类型</span>
+                <span class="card-value">${row.category}</span>
+            </div>
+            <div class="card-row">
+                <span class="card-label">金额</span>
+                <span class="card-value card-amount">¥${row.amount.toFixed(2)}</span>
+            </div>
+            ${row.note ? `
+            <div class="card-row">
+                <span class="card-label">备注</span>
+                <span class="card-value">${row.note}</span>
+            </div>
+            ` : ''}
+            <div class="card-actions">
+                <button class="btn btn-danger btn-small" onclick="deleteRow(${index})">
+                    <i class="fas fa-trash"></i> 删除
+                </button>
+            </div>
+        `;
+        mobileCards.appendChild(card);
+    });
+}
+
+function updateRow(index, value, field) {
+    const key = getCurrentKey();
+    if (localExpenses[key] && localExpenses[key][index]) {
+        if (field === 'amount') {
+            localExpenses[key][index][field] = parseFloat(value) || 0;
+        } else {
+            localExpenses[key][index][field] = value;
+        }
+        localStorage.setItem('localExpenses', JSON.stringify(localExpenses));
+        calc(localExpenses[key]);
+    }
+}
+
+function deleteRow(index) {
+    if (!confirm('确定要删除这条记录吗？')) return;
+    
+    const key = getCurrentKey();
+    if (localExpenses[key]) {
+        localExpenses[key].splice(index, 1);
+        localStorage.setItem('localExpenses', JSON.stringify(localExpenses));
+        loadCurrentMonth();
+        showStatus('记录已删除', 'success');
+    }
 }
 
 // 从云端加载数据
@@ -685,27 +1446,9 @@ async function loadCloudData() {
             return;
         }
         
-        console.log('云端数据:', data);
-        
-        // 清空当前表格
-        tbody.innerHTML = "";
-        
-        // 显示云端数据
         if (data && data.length > 0) {
-            data.forEach(item => {
-                addRow({
-                    id: item.id,
-                    expense_date: item.expense_date,
-                    category: item.category,
-                    amount: item.amount,
-                    note: item.note
-                });
-            });
-            
-            // 保存到本地
             const key = getCurrentKey();
             localExpenses[key] = data.map(item => ({
-                id: item.id,
                 expense_date: item.expense_date,
                 category: item.category,
                 amount: item.amount,
@@ -713,12 +1456,11 @@ async function loadCloudData() {
             }));
             
             localStorage.setItem('localExpenses', JSON.stringify(localExpenses));
+            loadCurrentMonth();
             showStatus(`从云端加载了 ${data.length} 条记录`, 'success');
         } else {
             showStatus('云端没有该月份的数据', 'info');
         }
-        
-        calc();
     } catch (error) {
         showStatus('加载云端数据异常：' + error.message, 'error');
     }
@@ -736,111 +1478,88 @@ async function syncData() {
     try {
         const year = parseInt(yearEl.value);
         const month = parseInt(monthEl.value);
-        const rows = [...tbody.children];
+        const key = getCurrentKey();
+        const rows = localExpenses[key] || [];
         
-        let successCount = 0;
-        let errorCount = 0;
-        
-        for (const tr of rows) {
-            const inputs = tr.querySelectorAll("input,select");
-            const rowData = {
-                year: year,
-                month: month,
-                expense_date: inputs[0].value,
-                category: inputs[1].value,
-                amount: parseFloat(inputs[2].value) || 0,
-                note: inputs[3].value
-            };
-            
-            const rowId = tr.dataset.id;
-            
-            try {
-                if (rowId) {
-                    // 更新现有记录
-                    const { error } = await supabaseClient
-                        .from(currentConfig.tableName)
-                        .update(rowData)
-                        .eq('id', rowId);
-                        
-                    if (error) throw error;
-                } else {
-                    // 插入新记录
-                    const { data, error } = await supabaseClient
-                        .from(currentConfig.tableName)
-                        .insert(rowData)
-                        .select();
-                        
-                    if (error) throw error;
-                    
-                    // 保存返回的ID
-                    if (data && data[0]) {
-                        tr.dataset.id = data[0].id;
-                    }
-                }
-                successCount++;
-            } catch (err) {
-                console.error('同步单条记录失败:', err);
-                errorCount++;
-            }
+        if (rows.length === 0) {
+            showStatus('没有数据需要同步', 'info');
+            return;
         }
         
-        // 更新本地存储中的ID
-        saveLocalData();
+        // 先删除该月的旧数据
+        await supabaseClient
+            .from(currentConfig.tableName)
+            .delete()
+            .eq('year', year)
+            .eq('month', month);
         
-        if (errorCount > 0) {
-            showStatus(`同步完成：${successCount}条成功，${errorCount}条失败`, 'error');
-        } else {
-            showStatus(`✅ 同步完成：${successCount}条记录已保存到云端`, 'success');
-        }
+        // 插入新数据
+        const records = rows.map(row => ({
+            year: year,
+            month: month,
+            expense_date: row.expense_date,
+            category: row.category,
+            amount: row.amount,
+            note: row.note
+        }));
+        
+        const { error } = await supabaseClient
+            .from(currentConfig.tableName)
+            .insert(records);
+            
+        if (error) throw error;
+        
+        showStatus(`✅ 同步完成：${rows.length}条记录已保存到云端`, 'success');
     } catch (error) {
         showStatus('同步失败：' + error.message, 'error');
     }
 }
 
 /* ========= 统计计算 ========= */
-function calc() {
+function calc(rows) {
+    if (!rows) {
+        const key = getCurrentKey();
+        rows = localExpenses[key] || [];
+    }
+    
     let total = 0;
     const map = {};
-    [...tbody.children].forEach(tr => {
-        const amt = parseFloat(tr.querySelector(".amount-input")?.value) || 0;
-        const type = tr.querySelector(".category-select")?.value || '';
-        total += amt;
-        if (type) {
-            map[type] = (map[type] || 0) + amt;
-        }
+    
+    rows.forEach(row => {
+        total += row.amount;
+        const category = row.category || '未分类';
+        map[category] = (map[category] || 0) + row.amount;
     });
     
     document.getElementById("total").textContent = total.toFixed(2);
     
-    const detail = Object.entries(map)
-        .map(([k, v]) => `${k}: ¥${v.toFixed(2)}`)
-        .join("<br>");
-    document.getElementById("detail").innerHTML = detail || '暂无分类统计';
+    const detail = document.getElementById("detail");
+    detail.innerHTML = "";
+    
+    Object.entries(map).forEach(([category, amount]) => {
+        const item = document.createElement("div");
+        item.className = "summary-item";
+        item.innerHTML = `
+            <div class="summary-category">${category}</div>
+            <div class="summary-amount">¥${amount.toFixed(2)}</div>
+        `;
+        detail.appendChild(item);
+    });
 }
 
-/* ========= 事件绑定 ========= */
-document.addEventListener('DOMContentLoaded', init);
-
-document.getElementById("addRow").onclick = () => {
-    addRow();
-    saveLocalData();
-};
-
-yearEl.onchange = monthEl.onchange = () => {
-    loadCurrentMonth();
-};
-
 /* ========= Excel导出 ========= */
-document.getElementById("export").onclick = () => {
+function exportToExcel() {
+    const key = getCurrentKey();
+    const rows = localExpenses[key] || [];
+    
+    if (rows.length === 0) {
+        showStatus('没有数据可以导出', 'info');
+        return;
+    }
+    
     const data = [["日期", "类型", "金额", "备注"]];
-    [...tbody.children].forEach(tr => {
-        const inputs = tr.querySelectorAll("input,select");
-        data.push([
-            inputs[0].value,
-            inputs[1].value,
-            inputs[2].value,
-            inputs[3].value
-        ]);
+    rows.forEach(row => {
+        data.push([row.expense_date, row.category, row.amount, row.note || '']);
     });
     
     const wb = XLSX.utils.book_new();
@@ -848,7 +1567,21 @@ document.getElementById("export").onclick = () => {
     const fileName = `${yearEl.value}年${parseInt(monthEl.value) + 1}月花销.xlsx`;
     XLSX.writeFile(wb, fileName);
     showStatus(`Excel文件"${fileName}"导出成功！`, 'success');
+}
+
+/* ========= 事件绑定 ========= */
+document.addEventListener('DOMContentLoaded', init);
+
+yearEl.onchange = monthEl.onchange = () => {
+    loadCurrentMonth();
 };
+
+// 防止表单提交
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+        e.preventDefault();
+    }
+});
 </script>
 </body>
 </html>
