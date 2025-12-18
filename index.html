@@ -122,7 +122,7 @@ th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; }
 <script>
 // === 配置 ===
 const SUPABASE_URL = 'https://lhmegseratwrdomkuikk.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIs...'; // 你的 anon key
+const SUPABASE_KEY = 'sb_publishable_vG66XSCR6tYWuQD3-8Ta6Q_MP_cw39B'; // 你的 anon key
 
 // 初始化客户端（使用 window 对象避免重复）
 window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -490,30 +490,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         }
         
-        // 修改保存函数，添加云端同步
-        const originalSaveExpenseData = window.saveExpenseData;
-        if (originalSaveExpenseData) {
-            window.saveExpenseData = function() {
-                // 保存到本地
-                originalSaveExpenseData.call(this);
-                
-                // 如果已登录，保存到云端
-                if (currentUser) {
-                    const rows = document.querySelectorAll('#expense-table tbody tr');
-                    const data = Array.from(rows).map(r => ({
-                        id: r.dataset.id,
-                        date: r.querySelector('.date-input').value,
-                        type: r.querySelector('.type-select').value,
-                        amount: parseFloat(r.querySelector('.amount-input').value) || 0,
-                        notes: r.querySelector('.notes-input').value
-                    }));
-                    
-                    if (data.length > 0) {
-                        saveToCloud(data);
-                    }
-                }
-            };
-        }
     }, 500);
     
     // 监听认证状态变化
