@@ -730,6 +730,33 @@ table input:focus, table select:focus {
     animation: spin 1s linear infinite;
 }
 
+.daily-summary-panel {
+    background: var(--card-bg);   /* 跟系统主题走 */
+    color: var(--text-color);     /* 自动适配深色/浅色 */
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 20px;
+    box-shadow: var(--shadow);
+}
+
+.daily-item {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.daily-item:hover {
+    background: #f5f5f5;
+}
+
+.daily-details {
+    margin-top: 8px;
+    padding-left: 10px;
+    display: none;
+    font-size: 13px;
+    color: #666;
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -837,6 +864,10 @@ table input:focus, table select:focus {
 
     <!-- 统计面板 -->
     <div class="summary-panel">
+        <div class="daily-summary-panel">
+            <h3 style="margin: 16px 0;">📅 每日消费统计</h3>
+            <div id="dailySummary"></div>
+        </div>
         <div class="summary-total">
             ¥ <span id="total">0</span>
         </div>
@@ -1317,6 +1348,58 @@ function loadCurrentMonth() {
     
     // 更新统计
     calc(rows);
+    function renderDailySummary(rows) {
+    const container = document.getElementById("dailySummary");
+    container.innerHTML = "";
+
+    if (!rows || rows.length === 0) return;
+
+    // 按日期分组
+    const map = {};
+
+    rows.forEach(row => {
+        const day = new Date(row.expense_date).getDate();
+
+        if (!map[day]) {
+            map[day] = [];
+        }
+        map[day].push(row);
+    });
+
+    // 排序（按日期）
+    const sortedDays = Object.keys(map).sort((a, b) => a - b);
+
+    sortedDays.forEach(day => {
+        const list = map[day];
+        const total = list.reduce((sum, r) => sum + r.amount, 0);
+
+        const div = document.createElement("div");
+        div.className = "daily-item";
+
+        div.innerHTML = `
+            <div>
+                ${day}号：¥${total.toFixed(2)} 
+                ${list.length > 1 ? `（${list.length}笔）` : ""}
+            </div>
+            <div class="daily-details">
+                ${list.map(r => `
+                    <div>
+                        ${r.category} - ¥${r.amount.toFixed(2)} 
+                        ${r.note ? `（${r.note}）` : ""}
+                    </div>
+                `).join("")}
+            </div>
+        `;
+
+        // 点击展开
+        div.onclick = () => {
+            const detail = div.querySelector(".daily-details");
+            detail.style.display = detail.style.display === "none" ? "block" : "none";
+        };
+
+        container.appendChild(div);
+    });
+}
 }
 
 function updateDesktopTable(rows) {
@@ -1544,6 +1627,60 @@ function calc(rows) {
             <div class="summary-amount">¥${amount.toFixed(2)}</div>
         `;
         detail.appendChild(item);
+    });
+    renderDailySummary(rows);
+}
+
+function renderDailySummary(rows) {
+    const container = document.getElementById("dailySummary");
+    container.innerHTML = "";
+
+    if (!rows || rows.length === 0) return;
+
+    // 按日期分组
+    const map = {};
+
+    rows.forEach(row => {
+        const day = new Date(row.expense_date).getDate();
+
+        if (!map[day]) {
+            map[day] = [];
+        }
+        map[day].push(row);
+    });
+
+    // 排序（按日期）
+    const sortedDays = Object.keys(map).sort((a, b) => a - b);
+
+    sortedDays.forEach(day => {
+        const list = map[day];
+        const total = list.reduce((sum, r) => sum + r.amount, 0);
+
+        const div = document.createElement("div");
+        div.className = "daily-item";
+
+        div.innerHTML = `
+            <div>
+                ${day}号：¥${total.toFixed(2)} 
+                ${list.length > 1 ? `（${list.length}笔）` : ""}
+            </div>
+            <div class="daily-details">
+                ${list.map(r => `
+                    <div>
+                        ${r.category} - ¥${r.amount.toFixed(2)} 
+                        ${r.note ? `（${r.note}）` : ""}
+                    </div>
+                `).join("")}
+            </div>
+        `;
+
+        // 点击展开
+        div.onclick = () => {
+            const detail = div.querySelector(".daily-details");
+            detail.style.display = detail.style.display === "none" ? "block" : "none";
+        };
+
+        container.appendChild(div);
     });
 }
 
